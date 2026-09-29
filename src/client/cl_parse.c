@@ -766,21 +766,28 @@ CL_ParsePacketEntities(const frame_t *oldframe, frame_t *newframe)
 				Com_Printf("   remove: %i\n", newnum);
 			}
 
-			if (oldnum == newnum)
+			if (oldnum != newnum)
 			{
-				oldindex++;
+				Com_Printf("U_REMOVE: oldnum != newnum: %d %d\n", oldnum, newnum);
+			}
 
-				if (oldindex >= oldframe->num_entities)
-				{
-					oldnum = 99999;
-				}
+			oldindex++;
 
-				else
-				{
-					oldstate = &cl_parse_entities[(oldframe->parse_entities +
+			if (!oldframe)
+			{
+				continue;
+			}
+
+			if (oldindex >= oldframe->num_entities)
+			{
+				oldnum = 99999;
+			}
+
+			else
+			{
+				oldstate = &cl_parse_entities[(oldframe->parse_entities +
 										oldindex) & (MAX_PARSE_ENTITIES - 1)];
-					oldnum = oldstate->number;
-				}
+				oldnum = oldstate->number;
 			}
 
 			continue;
@@ -946,8 +953,9 @@ CL_ParsePlayerstate(frame_t *oldframe, frame_t *newframe, int protocol)
 		{
 			state->viewoffset[0] = MSG_ReadShort(&net_message) / 16.0f;
 			state->viewoffset[1] = MSG_ReadShort(&net_message) / 16.0f;
-			state->viewoffset[2] = MSG_ReadShort(&net_message) / 16.0f;
-			MSG_ReadChar(&net_message);
+			state->viewoffset[2] = MSG_ReadShort(&net_message);
+			/* z offset, superseded by viewheight */
+			state->viewoffset[2] += MSG_ReadChar(&net_message);
 		}
 		else
 		{
