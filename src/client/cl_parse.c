@@ -2149,6 +2149,12 @@ CL_ParseServerMessage(void)
 			{
 				char message[MAX_STRING_CHARS];
 				int num_args;
+				char args[RR22_MAX_LOCALIZATION_ARGS][MAX_STRING_CHARS];
+				char formatted[MAX_STRING_CHARS];
+				const char *format;
+				const char *p;
+				char *dest, *end;
+				int seq_arg = 0;
 
 				MSG_ReadByte(&net_message);	/* flags */
 				Q_strlcpy(message, MSG_ReadString(&net_message), sizeof(message));
@@ -2163,7 +2169,7 @@ CL_ParseServerMessage(void)
 
 				for (i = 0; i < num_args; i++)
 				{
-					MSG_ReadString(&net_message);
+					Q_strlcpy(args[i], MSG_ReadString(&net_message), sizeof(args[i]));
 				}
 
 				if (net_message.readcount > net_message.cursize)
@@ -2173,7 +2179,76 @@ CL_ParseServerMessage(void)
 					return;
 				}
 
-				Com_Printf("%s", SV_LocalizationMessage(message, NULL));
+				format = SV_LocalizationMessage(message, NULL);
+
+				p = format;
+				dest = formatted;
+				end = formatted + sizeof(formatted) - 1;
+
+				while (*p && dest < end)
+				{
+					if (*p == '{')
+					{
+						const char *brace_start = p;
+						p++;
+						if (*p == '}')
+						{
+							p++;
+							if (seq_arg < num_args)
+							{
+								const char *arg = args[seq_arg++];
+								while (*arg && dest < end)
+								{
+									*dest++ = *arg++;
+								}
+							}
+						}
+						else if (*p >= '0' && *p <= '9')
+						{
+							int index = 0;
+							while (*p >= '0' && *p <= '9')
+							{
+								index = index * 10 + (*p - '0');
+								p++;
+							}
+							if (*p == '}')
+							{
+								p++;
+								if (index >= 0 && index < num_args)
+								{
+									const char *arg = args[index];
+									while (*arg && dest < end)
+									{
+										*dest++ = *arg++;
+									}
+								}
+							}
+							else
+							{
+								const char *src = brace_start;
+								while (src < p && dest < end)
+								{
+									*dest++ = *src++;
+								}
+							}
+						}
+						else
+						{
+							const char *src = brace_start;
+							while (src <= p && dest < end)
+							{
+								*dest++ = *src++;
+							}
+						}
+					}
+					else
+					{
+						*dest++ = *p++;
+					}
+				}
+				*dest = '\0';
+
+				Com_Printf("%s", formatted);
 				break;
 			}
 
