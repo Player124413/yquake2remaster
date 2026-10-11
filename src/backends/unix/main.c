@@ -39,7 +39,10 @@
 void registerHandler(void);
 void setCustomCfgDir(const char* dir);
 
-int
+/* The SDL2 Android bootstrap dlopen()s libmain.so and dlsym()s
+   "SDL_main" (SDL_android.c nativeRunMain). The engine is compiled
+   with -fvisibility=hidden, so the entry point has to be exported. */
+Q2_DLL_EXPORTED int
 main(int argc, char **argv)
 {
 	/* Open the diagnostic log (-logfile <path>, passed by the Android
