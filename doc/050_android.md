@@ -129,9 +129,12 @@ field - run it whenever the headers or the patch change.
 
 Known limitations of the Kingpin game library:
 
-* The closed source AI navigation library (CNS) is stubbed on non-x86
-  platforms: NPC path finding is degraded (enemies may get stuck in
-  complex maps).
+* The closed-source AI navigation library (CNS) is unavailable on
+  Android. `android/kingpin_nav_stubs.c` provides ABI-correct,
+  fail-closed fallbacks, and the SDK adapter initializes the navigation
+  cvars before gameplay. NPC route finding is therefore unavailable; this
+  avoids the old stubs' undefined return values and the null
+  `nav_dynamic` dereference on a single-player frame.
 * `gi.GetObjectBounds()` is a no-op: per body part hit detection has no
   object bounds yet.
 * `gi.SaveCurrentGame()` is a no-op: hired guys do not survive map

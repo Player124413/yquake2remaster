@@ -366,6 +366,14 @@ diff -ruN a/gamesrc/G_main.c b/gamesrc/G_main.c
  void InitGame (void);
  void G_RunFrame (void);
  
+@@ -175,0 +176,7 @@
++
++	/* CNS is unavailable on Android. Keep its expected cvar globals valid
++	 * because the game reads them during single-player frames. */
++	nav_dynamic = gi.cvar("nav_dynamic", "0", 0);
++	nav_debug = gi.cvar("nav_debug", "0", 0);
++	nav_optimize = gi.cvar("nav_optimize", "0", 0);
++	nav_aipath = gi.cvar("nav_aipath", "0", 0);
 diff -ruN a/gamesrc/G_save.c b/gamesrc/G_save.c
 --- a/gamesrc/G_save.c	2020-05-27 11:27:54.000000000 +0000
 +++ b/gamesrc/G_save.c	2026-10-11 11:01:19.263442897 +0000

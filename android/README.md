@@ -51,7 +51,10 @@ is only needed on the phone at runtime. To prepare it locally:
   side of the game module ABI lives in this repository; see
   `kingpin_sdk_abi.patch` and `check_abi.sh`.
 * `kingpin_sdk_abi.patch` - adapts the Kingpin SDK headers to the game
-  module ABI defined by this repository's headers.
+  module ABI defined by this repository's headers; it also initializes
+  CNS cvars which game-frame code expects to exist.
+* `kingpin_nav_stubs.c` - type-correct, fail-closed fallback for the
+  proprietary x86-only CNS navigation library.
 * `check_abi.sh` - verifies engine and SDK header layout agreement.
 
 The engine side of the port (touch injection layer, JNI bridge, Android
