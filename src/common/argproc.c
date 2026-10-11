@@ -26,7 +26,10 @@
 
 #include "header/common.h"
 
-#define MAX_NUM_ARGVS 50
+/* The Android launcher passes engine settings as separate SDL argv items.
+   Its current startup command already needs more than the historical 50,
+   and future launcher settings should not make argument parsing fatal. */
+#define MAX_NUM_ARGVS 128
 
 int com_argc;
 char *com_argv[MAX_NUM_ARGVS + 1];
