@@ -67,11 +67,18 @@ jobs:
 
       - name: Install CMake 3.31+ (root CMakeLists requires 3.31)
         run: |
-          python3 -m pip install --user --break-system-packages --upgrade "cmake>=3.31" ninja
+          set -e
+          python3 -m pip install --user --break-system-packages --upgrade "cmake>=3.31,<4" ninja
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          # AGP prefers the SDK-shipped CMake 3.22.1 (and will even re-download
-          # it); point it at the pip installation instead via cmake.dir.
-          echo "cmake.dir=$HOME/.local" > android/local.properties
+          # AGP insists on the SDK package "cmake;3.22.1" (it even re-downloads
+          # it, ignoring PATH and cmake.dir). Keep the package in place but make
+          # its binaries wrappers around the pip CMake 3.31.
+          SDK_CMAKE="$ANDROID_HOME/cmake/3.22.1/bin"
+          mkdir -p "$SDK_CMAKE"
+          printf '#!/bin/sh\nexec "%s" "$@"\n' "$HOME/.local/bin/cmake" > "$SDK_CMAKE/cmake"
+          printf '#!/bin/sh\nexec "%s" "$@"\n' "$HOME/.local/bin/ninja" > "$SDK_CMAKE/ninja"
+          chmod +x "$SDK_CMAKE/cmake" "$SDK_CMAKE/ninja"
+          "$SDK_CMAKE/cmake" --version | head -n 1
 
       - name: Fetch SDL2
         run: android/fetch_deps.sh
