@@ -236,6 +236,11 @@ public final class Prefs
     {
         List<String> args = new ArrayList<>();
 
+        // Diagnostic log first: the engine redirects stdout/stderr into
+        // it before any check can fail (see -logfile in backends/unix/main.c).
+        args.add("-logfile");
+        args.add(GameLog.file(ctx).getAbsolutePath());
+
         args.add("-datadir");
         args.add(dataPath(ctx));
         args.add("-cfgdir");

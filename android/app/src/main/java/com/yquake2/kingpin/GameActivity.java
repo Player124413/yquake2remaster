@@ -57,6 +57,8 @@ public class GameActivity extends SDLActivity
             GameLog.log("GameActivity: engine library not loaded: " + e);
         }
 
+        GameLog.log("GameActivity: onCreate done");
+
         Prefs prefs = new Prefs(this);
         TouchLayout layout = new TouchLayout();
         layout.load(prefs);
@@ -76,6 +78,8 @@ public class GameActivity extends SDLActivity
     @Override
     protected void onDestroy()
     {
+        GameLog.log("GameActivity: onDestroy");
+
         try
         {
             NativeLib.nativeAllUp();

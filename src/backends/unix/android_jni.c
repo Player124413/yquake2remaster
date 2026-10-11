@@ -26,8 +26,10 @@
 #ifdef __ANDROID__
 
 #include <jni.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "../../common/header/common.h"
 #include "../../client/header/client.h"
@@ -38,36 +40,12 @@ int Key_StringToKeynum(const char *str);
 
 /* ---- shared diagnostic log ------------------------------------------ */
 
-static FILE *android_logfile;
-
-/*
- * Append engine console output to the launcher visible log file.
- * Called from Sys_ConsoleOutput() and Sys_Error(); the file is opened
- * by NativeLib.nativeLogOpen() before SDL_main runs.
- */
-void
-Android_LogFileWrite(const char *text)
-{
-	if (android_logfile == NULL || text == NULL)
-	{
-		return;
-	}
-
-	/* strip the console colour markers */
-	if ((text[0] == 0x01) || (text[0] == 0x02))
-	{
-		text++;
-	}
-
-	fputs(text, android_logfile);
-	fflush(android_logfile);
-}
-
 JNIEXPORT void JNICALL
 Java_com_yquake2_kingpin_NativeLib_nativeLogOpen(JNIEnv *env, jclass cls,
 		jstring path)
 {
 	const char *p;
+	int fd;
 
 	if (path == NULL)
 	{
@@ -81,13 +59,26 @@ Java_com_yquake2_kingpin_NativeLib_nativeLogOpen(JNIEnv *env, jclass cls,
 		return;
 	}
 
-	if (android_logfile != NULL)
+	/* Point stdout/stderr at the shared log file. The engine also
+	   redirects via -logfile (backends/unix/main.c) once SDL_main is
+	   running; this captures anything earlier and survives a missing
+	   argument. */
+	fd = open(p, O_WRONLY | O_CREAT | O_APPEND, 0666);
+
+	if (fd >= 0)
 	{
-		fclose(android_logfile);
-		android_logfile = NULL;
+		dup2(fd, 1);
+		dup2(fd, 2);
+
+		if (fd > 2)
+		{
+			close(fd);
+		}
+
+		setvbuf(stdout, NULL, _IOLBF, 1024);
+		setvbuf(stderr, NULL, _IOLBF, 1024);
 	}
 
-	android_logfile = fopen(p, "a");
 	(*env)->ReleaseStringUTFChars(env, path, p);
 }
 

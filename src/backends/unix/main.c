@@ -42,6 +42,29 @@ void setCustomCfgDir(const char* dir);
 int
 main(int argc, char **argv)
 {
+	/* Open the diagnostic log (-logfile <path>, passed by the Android
+	   launcher) before anything else. stdout and stderr are redirected
+	   into the file so even the argument sanity checks below are
+	   visible in the launcher log. */
+	for (int i = 0; i < argc - 1; i++)
+	{
+		if (strcmp(argv[i], "-logfile") == 0)
+		{
+			if (freopen(argv[i + 1], "a", stdout) != NULL)
+			{
+				setvbuf(stdout, NULL, _IOLBF, 1024);
+				printf("== engine main() start ==\n");
+			}
+
+			if (freopen(argv[i + 1], "a", stderr) != NULL)
+			{
+				setvbuf(stderr, NULL, _IOLBF, 1024);
+			}
+
+			break;
+		}
+	}
+
 	// register signal handler
 	registerHandler();
 
