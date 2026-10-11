@@ -1,0 +1,200 @@
+# Build the Kingpin Android APK (and optionally package game data).
+#
+# * build:      the APK with the engine, touch controls, renderers and
+#               the Kingpin game library. No game data is needed for
+#               this - the Kingpin SDK is downloaded by
+#               android/build_game_lib.sh.
+# * game data:  optionally download the game copy from a link you
+#               provide (Google Drive or HuggingFace) and package it
+#               next to the APK, so the result is a ready to play set.
+#
+# Trigger manually (Actions -> Android build -> Run workflow) and set:
+#   data_url      - link to an archive with the game data (main/*.pak)
+#   make_release  - publish the results as a GitHub release
+#
+# Optional secrets:
+#   KINGPIN_DATA_URL  - default data link (used when data_url is empty)
+#   HF_TOKEN          - HuggingFace token for private/gated repositories
+#   KEYSTORE_BASE64   - base64 keystore for stable APK signatures
+#   KEYSTORE_PASSWORD - keystore password
+#   KEYSTORE_ALIAS    - key alias inside the keystore
+#
+# Without KEYSTORE_* secrets the APK is signed with a key generated
+# for this run: it installs fine, but installing a later build on top
+# requires uninstalling first (Android wants the same signature).
+
+name: Android build
+
+on:
+  workflow_dispatch:
+    inputs:
+      data_url:
+        description: "Link to the Kingpin game data (Google Drive or HuggingFace, optional)"
+        required: false
+        default: ""
+      make_release:
+        description: "Create a GitHub release with the results"
+        type: boolean
+        default: true
+  push:
+    branches:
+      - master
+      - arena/40e53c9c-yquake2remaster
+    tags:
+      - "v*"
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+env:
+  ANDROID_NDK_VERSION: 26.1.10909125
+  ANDROID_BUILD_TOOLS: 34.0.0
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Android SDK packages
+        run: |
+          set -e
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          [ -x "$SDKMANAGER" ] || SDKMANAGER="$(command -v sdkmanager)"
+          yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+          "$SDKMANAGER" --install \
+            "platforms;android-34" \
+            "build-tools;$ANDROID_BUILD_TOOLS" \
+            "ndk;$ANDROID_NDK_VERSION" \
+            "cmake;3.22.1"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$ANDROID_NDK_VERSION" >> "$GITHUB_ENV"
+
+      - name: Fetch SDL2
+        run: android/fetch_deps.sh
+
+      - name: Verify Kingpin game module ABI
+        run: android/check_abi.sh
+
+      - name: Build Kingpin game library
+        run: android/build_game_lib.sh
+
+      - name: Build APK
+        run: android/build_apk.sh release
+
+      - name: Sign APK
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEYSTORE_ALIAS: ${{ secrets.KEYSTORE_ALIAS }}
+        run: |
+          set -e
+          BT="$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS"
+          UNSIGNED="android/app/build/outputs/apk/release/app-release-unsigned.apk"
+          [ -f "$UNSIGNED" ] || { echo "unsigned APK not found"; exit 1; }
+
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "==> Signing with the repository keystore..."
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/ci.keystore"
+            KS_PASS="$KEYSTORE_PASSWORD"
+            KEY_ALIAS="$KEYSTORE_ALIAS"
+          else
+            echo "==> No KEYSTORE_* secrets, generating a key for this run."
+            echo "    (installing future builds on top will need an uninstall,"
+            echo "     add KEYSTORE_* secrets for a stable signature)"
+            keytool -genkeypair -v \
+              -keystore "$RUNNER_TEMP/ci.keystore" \
+              -storepass ci-pass -keypass ci-pass \
+              -alias ci -keyalg RSA -keysize 2048 -validity 3650 \
+              -dname "CN=Kingpin CI, O=Kingpin"
+            KS_PASS="ci-pass"
+            KEY_ALIAS="ci"
+          fi
+
+          "$BT/zipalign" -f -p 4 "$UNSIGNED" "$RUNNER_TEMP/aligned.apk"
+          "$BT/apksigner" sign \
+            --ks "$RUNNER_TEMP/ci.keystore" \
+            --ks-pass "pass:$KS_PASS" \
+            --key-pass "pass:$KS_PASS" \
+            --ks-key-alias "$KEY_ALIAS" \
+            --out android/kingpin-android.apk \
+            "$RUNNER_TEMP/aligned.apk"
+          "$BT/apksigner" verify android/kingpin-android.apk
+          echo "==> Signed APK ready: android/kingpin-android.apk"
+
+      - name: Fetch game data (optional)
+        id: gamedata
+        env:
+          DATA_URL: ${{ inputs.data_url || secrets.KINGPIN_DATA_URL }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -e
+          if [ -z "$DATA_URL" ]; then
+            echo "No game data link provided - building APK only."
+            echo "has_data=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          android/fetch_game_data.sh "$DATA_URL" "$RUNNER_TEMP/game-data"
+          echo "has_data=true" >> "$GITHUB_OUTPUT"
+
+      - name: Pack game data
+        if: steps.gamedata.outputs.has_data == 'true'
+        run: |
+          set -e
+          cd "$RUNNER_TEMP/game-data"
+          zip -q -r -1 "$GITHUB_WORKSPACE/android/kingpin-game-data.zip" .
+          ls -la "$GITHUB_WORKSPACE/android/kingpin-game-data.zip"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kingpin-android-apk
+          path: android/kingpin-android.apk
+          if-no-files-found: error
+
+      - name: Upload game data artifact
+        if: steps.gamedata.outputs.has_data == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: kingpin-game-data
+          path: android/kingpin-game-data.zip
+          if-no-files-found: error
+
+      - name: Create GitHub release
+        if: >-
+          (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+          (github.event_name == 'workflow_dispatch' && inputs.make_release)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HAS_DATA: ${{ steps.gamedata.outputs.has_data }}
+        run: |
+          set -e
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            TAG="$GITHUB_REF_NAME"
+          else
+            TAG="android-build-$GITHUB_RUN_NUMBER"
+          fi
+          FILES="android/kingpin-android.apk"
+          if [ "$HAS_DATA" = "true" ]; then
+            FILES="$FILES android/kingpin-game-data.zip"
+          fi
+          NOTES="Automatic Android build (run $GITHUB_RUN_NUMBER)."
+          NOTES="$NOTES Install the APK, then extract kingpin-game-data.zip"
+          NOTES="$NOTES into the data folder shown by the launcher (main/*.pak)."
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" $FILES --clobber
+          else
+            gh release create "$TAG" $FILES --title "Android build $TAG" --notes "$NOTES"
+          fi
+          echo "==> Release: $TAG"

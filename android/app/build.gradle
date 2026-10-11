@@ -40,6 +40,9 @@ android {
         }
     }
 
+    // Pinned so local and CI builds use the same NDK.
+    ndkVersion '26.1.10909125'
+
     externalNativeBuild {
         cmake {
             // The engine build is driven by the repository root CMakeLists.txt,
