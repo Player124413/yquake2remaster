@@ -155,12 +155,19 @@ build_abi() {
         esac
         echo "cc $f"
         "$CC" $CFLAGS -c "$f" -o "$OBJDIR/${f%.c}.o"
-    done ) >> "$COMPLOG" 2>&1 || {
-        tail -n 40 "$COMPLOG"
+    done ) >> "$COMPLOG" 2>&1 || COMPFAIL=1
+    # Surface every compiler error line as a GitHub annotation.
+    grep 'error:' "$COMPLOG" | head -n 8 | while IFS= read -r line; do
+        echo "$line"
+        if [ "$GITHUB_ACTIONS" = "true" ]; then
+            echo "::error title=Game lib $ABI::${line}"
+        fi
+    done
+    if [ -n "$COMPFAIL" ]; then
+        tail -n 20 "$COMPLOG"
         fail "Compilation failed for $ABI (see the tail above)"
-    }
+    fi
     if grep -q 'error:' "$COMPLOG"; then
-        grep 'error:' "$COMPLOG" | head -n 20
         fail "Compiler reported errors for $ABI"
     fi
     NC="$(ls "$GAMESRC"/*.c | wc -l)"

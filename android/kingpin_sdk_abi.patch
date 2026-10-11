@@ -335,6 +335,33 @@ diff -ruN a/gamesrc/G_items.c b/gamesrc/G_items.c
  
  #define HEALTH_IGNORE_MAX	1
  #define HEALTH_TIMED		2
+diff -ruN a/gamesrc/G_main.c b/gamesrc/G_main.c
+--- a/gamesrc/G_main.c	2020-05-27 11:27:54.000000000 +0000
++++ b/gamesrc/G_main.c	2026-10-11 11:10:29.806223641 +0000
+@@ -102,7 +102,7 @@
+ cvar_t	*g_mapcycle_file;
+ // Ridah, done.
+ 
+-void SpawnEntities (char *mapname, char *entities, char *spawnpoint);
++void SpawnEntities (const char *mapname, char *entities, const char *spawnpoint);
+ void ClientThink (edict_t *ent, usercmd_t *cmd);
+ qboolean ClientConnect (edict_t *ent, char *userinfo);
+ void ClientUserinfoChanged (edict_t *ent, char *userinfo);
+@@ -110,10 +110,10 @@
+ void ClientBegin (edict_t *ent);
+ void ClientCommand (edict_t *ent);
+ void RunEntity (edict_t *ent);
+-void WriteGame (char *filename, qboolean autosave);
+-void ReadGame (char *filename);
+-void WriteLevel (char *filename);
+-void ReadLevel (char *filename);
++void WriteGame (const char *filename, qboolean autosave);
++void ReadGame (const char *filename);
++void WriteLevel (const char *filename);
++void ReadLevel (const char *filename);
+ void InitGame (void);
+ void G_RunFrame (void);
+ 
 diff -ruN a/gamesrc/G_save.c b/gamesrc/G_save.c
 --- a/gamesrc/G_save.c	2020-05-27 11:27:54.000000000 +0000
 +++ b/gamesrc/G_save.c	2026-10-11 11:01:19.263442897 +0000
