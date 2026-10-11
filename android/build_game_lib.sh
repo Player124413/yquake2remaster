@@ -39,6 +39,15 @@
 #
 set -e
 
+# In GitHub Actions, turn failure messages into visible annotations.
+fail() {
+    echo "!! $*"
+    if [ "$GITHUB_ACTIONS" = "true" ]; then
+        echo "::error title=Build Kingpin game library::$*"
+    fi
+    return 1
+}
+
 SDK_TAG="${SDK_TAG:-master}"
 SDK_URL="${SDK_URL:-https://codeload.github.com/QuakeTools/Kingpin-SDK-v1.21/tar.gz/refs/heads/${SDK_TAG}}"
 
