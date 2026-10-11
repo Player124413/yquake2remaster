@@ -26,6 +26,7 @@
 
 #include "header/client.h"
 #include "sound/header/local.h"
+#include "../../common/header/cmodel.h"
 
 typedef enum
 {
@@ -697,10 +698,168 @@ static unsigned int splash_color[] = {
 	0xff001f9b, 0xff00001b,
 };
 
+enum
+{
+	KP_TE_GUNSHOT_VISIBLE = 1,
+	KP_TE_SFXFIRE = 32,
+	KP_TE_SFXSMOKE = 33,
+	KP_TE_SFXFIREGO = 34,
+	KP_TE_SNOW = 37,
+	KP_TE_RAIN = 38,
+	KP_TE_BLOOD_POOL = 42,
+	KP_TE_SURFACE_SPRITE_ENTITY = 43,
+	KP_TE_BURN_TO_A_CRISP = 44,
+	KP_TE_CONCUSSION_EXPLOSION = 45,
+	KP_TE_CONCUSSION_EXPLOSION_WATER = 46,
+	KP_TE_EXPLOSION1B = 47,
+	KP_TE_IMPACT = 48,
+	KP_TE_EXPLOSION1C = 49,
+	KP_TE_SFXSTEAM = 50,
+	KP_TE_SFXSMOKE2 = 51,
+	KP_TE_IMPACT_CONCUSSION = 52,
+	KP_TE_ART_BURN = 53,
+	KP_TE_FOG_BRUSH = 54,
+	KP_TE_GIBS = 55,
+	KP_TE_CONCUSSION_EXPLOSION_BIG = 56,
+	KP_TE_BARMACHINGUN = 57,
+	KP_TE_SFXFIRET = 58
+};
+
+/* Kingpin's extended visual events are not yet implemented by this
+ * renderer. Consume their known wire payloads so they cannot desync the
+ * following server commands. The common events are translated below and
+ * use the existing Quake II effects. */
+static void
+CL_SkipKingpinTempEntity(int type)
+{
+	vec3_t pos;
+	int i;
+
+	switch (type)
+	{
+		case KP_TE_SFXFIRE:
+		case KP_TE_SFXSMOKE:
+		case KP_TE_SFXFIRET:
+			MSG_ReadPos(&net_message, pos, cls.serverProtocol);
+			MSG_ReadByte(&net_message);
+			MSG_ReadByte(&net_message);
+			break;
+
+		case KP_TE_SFXFIREGO:
+			MSG_ReadPos(&net_message, pos, cls.serverProtocol);
+			MSG_ReadByte(&net_message);
+			break;
+
+		case KP_TE_SNOW:
+			MSG_ReadPos(&net_message, pos, cls.serverProtocol);
+			for (i = 0; i < 4; i++)
+			{
+				MSG_ReadShort(&net_message);
+			}
+			break;
+
+		case KP_TE_RAIN:
+			MSG_ReadPos(&net_message, pos, cls.serverProtocol);
+			for (i = 0; i < 5; i++)
+			{
+				MSG_ReadShort(&net_message);
+			}
+			break;
+
+		case KP_TE_BLOOD_POOL:
+		case KP_TE_IMPACT:
+		case KP_TE_IMPACT_CONCUSSION:
+			MSG_ReadPos(&net_message, pos, cls.serverProtocol);
+			MSG_ReadByte(&net_message); /* encoded direction */
+			break;
+
+		case KP_TE_SURFACE_SPRITE_ENTITY:
+			MSG_ReadByte(&net_message);
+			MSG_ReadByte(&net_message);
+			MSG_ReadByte(&net_message);
+			MSG_ReadPos(&net_message, pos, cls.serverProtocol);
+			MSG_ReadAngle16(&net_message);
+			MSG_ReadAngle16(&net_message);
+			break;
+
+		case KP_TE_BURN_TO_A_CRISP:
+			MSG_ReadPos(&net_message, pos, cls.serverProtocol);
+			break;
+
+		case KP_TE_CONCUSSION_EXPLOSION:
+		case KP_TE_CONCUSSION_EXPLOSION_WATER:
+		case KP_TE_CONCUSSION_EXPLOSION_BIG:
+			MSG_ReadPos(&net_message, pos, cls.serverProtocol);
+			MSG_ReadByte(&net_message); /* encoded direction */
+			MSG_ReadByte(&net_message);
+			break;
+
+		case KP_TE_EXPLOSION1B:
+		case KP_TE_EXPLOSION1C:
+			MSG_ReadPos(&net_message, pos, cls.serverProtocol);
+			MSG_ReadByte(&net_message); /* encoded direction */
+			MSG_ReadByte(&net_message);
+			MSG_ReadByte(&net_message);
+			break;
+
+		case KP_TE_SFXSTEAM:
+			MSG_ReadPos(&net_message, pos, cls.serverProtocol);
+			MSG_ReadByte(&net_message); /* encoded direction */
+			for (i = 0; i < 5; i++)
+			{
+				MSG_ReadByte(&net_message);
+			}
+			break;
+
+		case KP_TE_SFXSMOKE2:
+			MSG_ReadPos(&net_message, pos, cls.serverProtocol);
+			MSG_ReadPos(&net_message, pos, cls.serverProtocol);
+			for (i = 0; i < 4; i++)
+			{
+				MSG_ReadByte(&net_message);
+			}
+			break;
+
+		case KP_TE_ART_BURN:
+			MSG_ReadPos(&net_message, pos, cls.serverProtocol);
+			MSG_ReadShort(&net_message);
+			for (i = 0; i < 4; i++)
+			{
+				MSG_ReadByte(&net_message);
+			}
+			break;
+
+		case KP_TE_FOG_BRUSH:
+			MSG_ReadPos(&net_message, pos, cls.serverProtocol);
+			MSG_ReadPos(&net_message, pos, cls.serverProtocol);
+			break;
+
+		case KP_TE_GIBS:
+			MSG_ReadPos(&net_message, pos, cls.serverProtocol);
+			MSG_ReadByte(&net_message); /* encoded direction */
+			for (i = 0; i < 4; i++)
+			{
+				MSG_ReadByte(&net_message);
+			}
+			break;
+
+		default:
+			Com_Error(ERR_DROP, "%s: unsupported Kingpin temp entity %d",
+				__func__, type);
+			return;
+	}
+
+	if (net_message.readcount > net_message.cursize)
+	{
+		Com_Error(ERR_DROP, "%s: truncated Kingpin temp entity %d",
+			__func__, type);
+	}
+}
+
 void
 CL_ParseTEnt(void)
 {
-	temp_event_t type;
+	int type;
 	vec3_t pos, pos2, dir;
 	explosion_t *ex;
 	int cnt;
@@ -709,6 +868,45 @@ CL_ParseTEnt(void)
 	int magnitude;
 
 	type = MSG_ReadByte(&net_message);
+	if (type < 0)
+	{
+		Com_Error(ERR_DROP, "%s: unexpected message end", __func__);
+		return;
+	}
+
+	if ((int)Cvar_VariableValue("maptype") == map_kingpin)
+	{
+		if (type >= KP_TE_SFXFIRE)
+		{
+			CL_SkipKingpinTempEntity(type);
+			return;
+		}
+
+		/* Kingpin inserts GUNSHOT_VISIBLE and METAL_SPARKS into the
+		 * original Quake II temp-entity numbering. */
+		if ((type == TE_GUNSHOT) || (type == KP_TE_GUNSHOT_VISIBLE))
+		{
+			type = TE_GUNSHOT;
+		}
+		else if ((type >= 2) && (type <= 9))
+		{
+			type--;
+		}
+		else if ((type == 10) || (type == 11))
+		{
+			type = TE_SPARKS;
+		}
+		else if ((type >= 12) && (type <= 31))
+		{
+			type -= 2;
+		}
+		else
+		{
+			Com_Error(ERR_DROP, "%s: unsupported Kingpin temp entity %d",
+				__func__, type);
+			return;
+		}
+	}
 
 	switch (type)
 	{
@@ -1303,6 +1501,11 @@ CL_ParseTEnt(void)
 
 		default:
 			Com_Error(ERR_DROP, "%s: bad type", __func__);
+	}
+
+	if (net_message.readcount > net_message.cursize)
+	{
+		Com_Error(ERR_DROP, "%s: truncated temp entity", __func__);
 	}
 }
 

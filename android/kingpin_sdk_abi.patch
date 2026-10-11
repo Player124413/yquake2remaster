@@ -297,6 +297,21 @@ diff -ruN a/gamesrc/GAME.H b/gamesrc/GAME.H
 diff -ruN a/gamesrc/G_LOCAL.H b/gamesrc/G_LOCAL.H
 --- a/gamesrc/G_LOCAL.H	2020-05-27 11:27:54.000000000 +0000
 +++ b/gamesrc/G_LOCAL.H	2026-10-11 11:01:06.059376247 +0000
+@@ -31,4 +31,4 @@
+-#define	svc_muzzleflash3	3
+-#define	svc_temp_entity		4
+-#define	svc_layout			5
+-#define	svc_inventory		6
++#define	svc_muzzleflash3	32
++#define	svc_temp_entity		3
++#define	svc_layout			4
++#define	svc_inventory		5
+@@ -36,1 +36,1 @@
+-#define svc_hud				7
++#define svc_hud				6	/* maps to yquake2remaster svc_nop */
+@@ -38,1 +38,1 @@
+-#define svc_stufftext		13
++#define svc_stufftext		11
 @@ -1413,6 +1413,9 @@
  
  	float		voice_pitch;		// used to pitch voices up/down, 1.0 = same, 2.0 = chipmunk (double speed)
@@ -307,6 +322,13 @@ diff -ruN a/gamesrc/G_LOCAL.H b/gamesrc/G_LOCAL.H
  	// DO NOT MODIFY ANYTHING ABOVE THIS, THE SERVER
  	// EXPECTS THE FIELDS IN THAT ORDER!
  
+diff -ruN a/gamesrc/G_WEAPON.C b/gamesrc/G_WEAPON.C
+--- a/gamesrc/G_WEAPON.C	2020-05-27 11:27:54.000000000 +0000
++++ b/gamesrc/G_WEAPON.C	2026-10-11 11:18:00.000000000 +0000
+@@ -245,1 +245,1 @@
+-			gi.WriteByte (MZ3_LEADHIT_METAL);
++			gi.WriteShort (MZ3_LEADHIT_METAL);
+
 diff -ruN a/gamesrc/G_cmds.c b/gamesrc/G_cmds.c
 --- a/gamesrc/G_cmds.c	2020-05-27 11:27:54.000000000 +0000
 +++ b/gamesrc/G_cmds.c	2026-10-11 11:01:06.063376267 +0000

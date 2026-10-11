@@ -38,6 +38,43 @@ else
     SDK_GAMESRC="$SDK_SRC/gamesrc"
 fi
 
+echo "==> Checking Kingpin wire service opcodes..."
+SDK_LOCAL_HEADER="$SDK_GAMESRC/G_LOCAL.H"
+[ -f "$SDK_LOCAL_HEADER" ] || SDK_LOCAL_HEADER="$SDK_GAMESRC/g_local.h"
+if [ ! -f "$SDK_LOCAL_HEADER" ]; then
+    echo "!! Kingpin G_LOCAL.H was not found in $SDK_GAMESRC"
+    exit 1
+fi
+check_wire_opcode() {
+    name="$1"
+    expected="$2"
+    actual="$(awk -v name="$name" '$1 == "#define" && $2 == name { print $3; exit }' \
+        "$SDK_LOCAL_HEADER")"
+    if [ "$actual" != "$expected" ]; then
+        echo "!! Kingpin $name opcode mismatch: expected=$expected got=$actual"
+        exit 1
+    fi
+    echo "  $name=$actual"
+}
+check_wire_opcode svc_muzzleflash 1
+check_wire_opcode svc_muzzleflash2 2
+check_wire_opcode svc_muzzleflash3 32
+check_wire_opcode svc_temp_entity 3
+check_wire_opcode svc_layout 4
+check_wire_opcode svc_inventory 5
+check_wire_opcode svc_hud 6
+check_wire_opcode svc_stufftext 11
+
+SDK_WEAPON_SOURCE="$SDK_GAMESRC/G_WEAPON.C"
+[ -f "$SDK_WEAPON_SOURCE" ] || SDK_WEAPON_SOURCE="$SDK_GAMESRC/g_weapon.c"
+if ! grep -Eq 'gi\.WriteShort[[:space:]]*\([[:space:]]*MZ3_LEADHIT_METAL' \
+        "$SDK_WEAPON_SOURCE" ||
+        grep -Eq 'gi\.WriteByte[[:space:]]*\([[:space:]]*MZ3_LEADHIT_METAL' \
+        "$SDK_WEAPON_SOURCE"; then
+    echo "!! Kingpin svc_muzzleflash3 payload must be a short for yquake2remaster"
+    exit 1
+fi
+
 echo "==> Checking game API version..."
 ENGINE_GAME_API_VERSION="$(awk '$1 == "#define" && $2 == "GAME_API_VERSION" { print $3; exit }' \
     "$REPO/src/game/header/game.h")"

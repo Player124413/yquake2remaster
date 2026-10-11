@@ -124,8 +124,13 @@ this repository's headers (`src/common/header/shared.h`,
 `entity_state_t` / `player_state_t` (model parts, alpha/scale),
 `game_import_t` / `game_export_t` function slots (skinindex, object
 bounds, savegame hooks), the `edict_s` prefix and the configstring
-layout. `android/check_abi.sh` verifies that both sides agree field by
-field - run it whenever the headers or the patch change.
+layout. The patch also remaps Kingpin's legacy `svc_*` bytes to the
+engine's protocol-2024 service opcodes; the client translates Kingpin's
+temp-entity numbering and currently consumes known Kingpin-only visual
+events without rendering them, so they cannot desynchronize following
+messages. `android/check_abi.sh`
+verifies the ABI and service-opcode mapping - run it whenever the headers
+or the patch change.
 
 Known limitations of the Kingpin game library:
 
