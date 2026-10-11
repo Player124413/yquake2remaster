@@ -19,22 +19,19 @@ launcher and press PLAY.
 ## Building in GitHub Actions
 
 `.github/workflows/android.yml` builds the APK in the cloud - no local
-Android SDK needed. Open **Actions -> Android build -> Run workflow**:
+Android SDK and no game data needed. Open **Actions -> Android build
+-> Run workflow** (or push to the branch; `v*` tags publish a release
+automatically):
 
-* **data_url** *(optional)* - a Google Drive or HuggingFace link to an
-  archive with the game data (`main/*.pak`). The data is packaged next
-  to the APK as `kingpin-game-data.zip`. Private HuggingFace repos work
-  with the `HF_TOKEN` secret.
-* **make_release** - publish the results as a GitHub release (also
-  happens automatically for `v*` tags).
+* **make_release** - publish the APK as a GitHub release.
 
-Optional secrets: `KINGPIN_DATA_URL` (default data link), `HF_TOKEN`,
-and `KEYSTORE_BASE64` + `KEYSTORE_PASSWORD` + `KEYSTORE_ALIAS` for a
-stable APK signature across builds (without them each build gets a
-fresh key: the first install works, updating on top needs a
-uninstall).
+Optional secrets `KEYSTORE_BASE64` + `KEYSTORE_PASSWORD` +
+`KEYSTORE_ALIAS` give a stable APK signature across builds (without
+them each build gets a fresh key: the first install works, updating on
+top needs a uninstall).
 
-The game data can also be prepared locally:
+The game data (copy `main/*.pak` to the folder shown by the launcher)
+is only needed on the phone at runtime. To prepare it locally:
 
 ```sh
 ./fetch_game_data.sh "https://drive.google.com/file/d/..." game-data

@@ -1,20 +1,13 @@
-# Build the Kingpin Android APK (and optionally package game data).
+# Build the Kingpin Android APK in GitHub Actions.
 #
-# * build:      the APK with the engine, touch controls, renderers and
-#               the Kingpin game library. No game data is needed for
-#               this - the Kingpin SDK is downloaded by
-#               android/build_game_lib.sh.
-# * game data:  optionally download the game copy from a link you
-#               provide (Google Drive or HuggingFace) and package it
-#               next to the APK, so the result is a ready to play set.
+# The APK contains the engine, touch controls, renderers and the
+# Kingpin game library. Game data (main/*.pak) is NOT needed to build -
+# it is read from the phone at runtime; see android/README.md.
 #
-# Trigger manually (Actions -> Android build -> Run workflow) and set:
-#   data_url      - link to an archive with the game data (main/*.pak)
-#   make_release  - publish the results as a GitHub release
+# Trigger manually (Actions -> Android build -> Run workflow) or push
+# to master / the arena branch; pushing a v* tag publishes a release.
 #
 # Optional secrets:
-#   KINGPIN_DATA_URL  - default data link (used when data_url is empty)
-#   HF_TOKEN          - HuggingFace token for private/gated repositories
 #   KEYSTORE_BASE64   - base64 keystore for stable APK signatures
 #   KEYSTORE_PASSWORD - keystore password
 #   KEYSTORE_ALIAS    - key alias inside the keystore
@@ -28,10 +21,6 @@ name: Android build
 on:
   workflow_dispatch:
     inputs:
-      data_url:
-        description: "Link to the Kingpin game data (Google Drive or HuggingFace, optional)"
-        required: false
-        default: ""
       make_release:
         description: "Create a GitHub release with the results"
         type: boolean
@@ -133,42 +122,11 @@ jobs:
           "$BT/apksigner" verify android/kingpin-android.apk
           echo "==> Signed APK ready: android/kingpin-android.apk"
 
-      - name: Fetch game data (optional)
-        id: gamedata
-        env:
-          DATA_URL: ${{ inputs.data_url || secrets.KINGPIN_DATA_URL }}
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: |
-          set -e
-          if [ -z "$DATA_URL" ]; then
-            echo "No game data link provided - building APK only."
-            echo "has_data=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          android/fetch_game_data.sh "$DATA_URL" "$RUNNER_TEMP/game-data"
-          echo "has_data=true" >> "$GITHUB_OUTPUT"
-
-      - name: Pack game data
-        if: steps.gamedata.outputs.has_data == 'true'
-        run: |
-          set -e
-          cd "$RUNNER_TEMP/game-data"
-          zip -q -r -1 "$GITHUB_WORKSPACE/android/kingpin-game-data.zip" .
-          ls -la "$GITHUB_WORKSPACE/android/kingpin-game-data.zip"
-
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: kingpin-android-apk
           path: android/kingpin-android.apk
-          if-no-files-found: error
-
-      - name: Upload game data artifact
-        if: steps.gamedata.outputs.has_data == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: kingpin-game-data
-          path: android/kingpin-game-data.zip
           if-no-files-found: error
 
       - name: Create GitHub release
@@ -177,7 +135,6 @@ jobs:
           (github.event_name == 'workflow_dispatch' && inputs.make_release)
         env:
           GH_TOKEN: ${{ github.token }}
-          HAS_DATA: ${{ steps.gamedata.outputs.has_data }}
         run: |
           set -e
           if [ "$GITHUB_REF_TYPE" = "tag" ]; then
@@ -185,16 +142,13 @@ jobs:
           else
             TAG="android-build-$GITHUB_RUN_NUMBER"
           fi
-          FILES="android/kingpin-android.apk"
-          if [ "$HAS_DATA" = "true" ]; then
-            FILES="$FILES android/kingpin-game-data.zip"
-          fi
           NOTES="Automatic Android build (run $GITHUB_RUN_NUMBER)."
-          NOTES="$NOTES Install the APK, then extract kingpin-game-data.zip"
-          NOTES="$NOTES into the data folder shown by the launcher (main/*.pak)."
+          NOTES="$NOTES Install the APK, then copy the game data (main/*.pak)"
+          NOTES="$NOTES into the data folder shown by the launcher."
           if gh release view "$TAG" > /dev/null 2>&1; then
-            gh release upload "$TAG" $FILES --clobber
+            gh release upload "$TAG" android/kingpin-android.apk --clobber
           else
-            gh release create "$TAG" $FILES --title "Android build $TAG" --notes "$NOTES"
+            gh release create "$TAG" android/kingpin-android.apk \
+              --title "Android build $TAG" --notes "$NOTES"
           fi
           echo "==> Release: $TAG"
