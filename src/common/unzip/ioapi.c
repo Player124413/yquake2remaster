@@ -14,11 +14,18 @@
         #define _CRT_SECURE_NO_WARNINGS
 #endif
 
-#if defined(__APPLE__) || defined(IOAPI_NO_64) || defined(__HAIKU__) || defined(MINIZIP_FOPEN_NO_64)
+#if defined(__APPLE__) || defined(__HAIKU__) || defined(MINIZIP_FOPEN_NO_64)
 // In darwin and perhaps other BSD variants off_t is a 64 bit value, hence no need for specific 64 bit functions
 #define FOPEN_FUNC(filename, mode) fopen(filename, mode)
 #define FTELLO_FUNC(stream) ftello(stream)
 #define FSEEKO_FUNC(stream, offset, origin) fseeko(stream, offset, origin)
+#elif defined(IOAPI_NO_64)
+/* Android NDK: ftello()/fseeko() are only declared at API level 24+, but the
+   engine targets API 21. Plain ftell()/fseek() are always available and match
+   the no-64-bit-offsets contract of IOAPI_NO_64. */
+#define FOPEN_FUNC(filename, mode) fopen(filename, mode)
+#define FTELLO_FUNC(stream) ftell(stream)
+#define FSEEKO_FUNC(stream, offset, origin) fseek((stream), (long)(offset), origin)
 #else
 #define FOPEN_FUNC(filename, mode) fopen64(filename, mode)
 #define FTELLO_FUNC(stream) ftello64(stream)
