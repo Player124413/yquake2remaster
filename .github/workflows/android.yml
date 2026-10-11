@@ -67,8 +67,10 @@ jobs:
 
       - name: Install CMake 3.31+ (root CMakeLists requires 3.31)
         run: |
-          python3 -m pip install --user --break-system-packages --upgrade "cmake>=3.31"
+          python3 -m pip install --user --break-system-packages --upgrade "cmake>=3.31" ninja
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          # Remove the SDK-shipped CMake 3.22.1 so AGP falls back to PATH.
+          rm -rf "$ANDROID_HOME/cmake"
 
       - name: Fetch SDL2
         run: android/fetch_deps.sh
