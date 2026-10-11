@@ -170,13 +170,13 @@ build_abi() {
     if grep -q 'error:' "$COMPLOG"; then
         fail "Compiler reported errors for $ABI"
     fi
+    "$CC" $CFLAGS -c "$GAMESRC/kp_shim.c" -o "$OBJDIR/kp_shim.o"
+
     NC="$(ls "$GAMESRC"/*.c | wc -l)"
     NO="$(ls "$OBJDIR"/*.o | wc -l)"
     if [ "$NO" -ne "$NC" ]; then
-        fail "$ABI: expected $NC objects ($NC .c files), found $NO"
+        fail "$ABI: expected one object per .c file ($NC), found $NO"
     fi
-
-    "$CC" $CFLAGS -c "$GAMESRC/kp_shim.c" -o "$OBJDIR/kp_shim.o"
 
     # First link attempt: fails on the undefined closed-source CNS
     # navigation symbols. --no-undefined also catches missing objects.
