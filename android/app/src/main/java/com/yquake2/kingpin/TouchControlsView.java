@@ -480,6 +480,7 @@ public class TouchControlsView extends View
         }
 
         p.role = ROLE_LOOK;
+        return true;
     }
 
     private void handleMove(MotionEvent ev)
