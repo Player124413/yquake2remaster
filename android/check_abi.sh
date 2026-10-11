@@ -38,6 +38,17 @@ else
     SDK_GAMESRC="$SDK_SRC/gamesrc"
 fi
 
+echo "==> Checking game API version..."
+ENGINE_GAME_API_VERSION="$(awk '$1 == "#define" && $2 == "GAME_API_VERSION" { print $3; exit }' \
+    "$REPO/src/game/header/game.h")"
+SDK_GAME_API_VERSION="$(awk '$1 == "#define" && $2 == "GAME_API_VERSION" { print $3; exit }' \
+    "$SDK_GAMESRC/game.h")"
+if [ -z "$ENGINE_GAME_API_VERSION" ] || [ "$SDK_GAME_API_VERSION" != "$ENGINE_GAME_API_VERSION" ]; then
+    echo "!! GAME_API_VERSION mismatch: engine=$ENGINE_GAME_API_VERSION SDK=$SDK_GAME_API_VERSION"
+    exit 1
+fi
+echo "Game API version matches: $ENGINE_GAME_API_VERSION"
+
 echo "==> Generating offsetof probes..."
 python3 - "$WORK" << 'PYEOF'
 import sys

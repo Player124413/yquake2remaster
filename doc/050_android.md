@@ -7,8 +7,8 @@ Kingpin: Life of Crime content in particular.
 ## Features
 
 * **Launcher app** with all settings in one place: game data location,
-  renderer, render resolution, frame limit, VSync, brightness and the
-  full touch control configuration.
+  renderer, native fullscreen output, frame limit, VSync, brightness and
+  the full touch control configuration.
 * **Touch controls** implemented as an on screen overlay:
   * virtual movement stick (fixed or floating),
   * swipe look with adjustable sensitivity and optional Y invert,
@@ -20,13 +20,14 @@ Kingpin: Life of Crime content in particular.
   * optional vibration on button press,
   * **master switch to disable all touch controls** (for gamepad play).
 * **Performance**
-  * render resolution scaling (50% - 100%) for stable 60 fps on weak
-    GPUs,
+  * fullscreen output uses the phone's native display mode; SDL cannot
+    switch Android into arbitrary scaled display modes,
   * three renderers: OpenGL ES 3 (quality), OpenGL ES 1 (compatible),
-    software (works everywhere),
+    software (fallback),
   * quality / balanced / fast presets in the launcher,
   * engine built with `-O3` and link time optimization for the target
-    ABI (arm64-v8a, armeabi-v7a).
+    ABI (arm64-v8a, armeabi-v7a). Proper lower-resolution rendering
+    requires an off-screen render target and is not exposed yet.
 
 The launcher always passes its settings to the engine on the command
 line (`+set`), so they win over `config.cfg`. Key bindings and everything
@@ -73,7 +74,7 @@ libraries built into it are:
 ```
 -datadir <data path> -cfgdir <files>/cfg -libdir <nativeLibraryDir>
 +set game main +set maptype 3 +set vid_renderer gles3
-+set r_mode -1 +set r_customwidth W +set r_customheight H ...
++set vid_fullscreen 2 +set r_mode -2 ...
 ```
 
 `-libdir` tells the engine where the renderer modules live (the APK
@@ -167,23 +168,23 @@ keyboard can be used.
 
 ## Performance guide
 
-To reach a stable 60 fps on weak devices:
+For performance tuning on phones:
 
-1. Use the **Fast** preset (renderer OpenGL ES 1, 70% render scale).
+1. Try the **Fast** preset (OpenGL ES 1, VSync off) first. Actual frame
+   rate depends on the device and map; 60 fps cannot be guaranteed on
+   every phone.
 2. Or fine tune manually:
-   * **Render resolution** is the single biggest lever. 70-85% looks
-     close to native on phone screens and cuts GPU load by ~30%.
-   * **ETC2 texture compression** (default on, `r_etc2`) compresses
-     textures on load and cuts texture bandwidth - on mobile GPUs this
-     is often the second biggest win after the render scale.
+   * Output currently uses the native display resolution. Reduced
+     internal render resolution is not implemented yet (the old custom
+     SDL mode incorrectly fell back to a small window on Android).
+   * **ETC2 texture compression** (default on, `r_etc2`) can reduce
+     texture memory use on supported GLES devices.
    * `vid_maxfps 60` with VSync on gives smooth frame pacing; VSync off
-     with `vid_maxfps 144` gives lower input latency on high refresh
-     displays.
-   * The software renderer runs on literally everything but is CPU
-     bound - use it as a last resort.
-3. Close background apps. The engine already defaults to
-   `cl_async 1` with automatic packet framerate, which is the best
-   setting for movement correctness at any fps.
+     can reduce input latency on high-refresh displays.
+   * The software renderer is a compatibility fallback and is CPU-bound.
+3. Close background apps. The engine defaults to `cl_async 1` with
+   automatic packet framerate, which keeps movement independent of
+   render framerate.
 
 ## Repository layout
 

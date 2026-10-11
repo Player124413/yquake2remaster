@@ -25,7 +25,7 @@
     <string name="data_path_hint">Path to the folder that contains the game data (the main/ directory with pak files)</string>
     <string name="game_dir">Game directory name</string>
     <string name="renderer">Renderer</string>
-    <string name="render_scale">Render resolution</string>
+    <string name="android_display_note">Android fullscreen uses the phone's native display mode. Lower internal render resolution is not available yet.</string>
     <string name="fps_limit">FPS limit</string>
     <string name="vsync">VSync</string>
     <string name="etc2">ETC2 texture compression</string>

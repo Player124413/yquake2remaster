@@ -1,6 +1,9 @@
 diff -ruN a/gamesrc/GAME.H b/gamesrc/GAME.H
 --- a/gamesrc/GAME.H	2020-05-27 11:27:54.000000000 +0000
 +++ b/gamesrc/GAME.H	2026-10-11 11:18:16.616581436 +0000
+@@ -3 +3 @@
+-#define	GAME_API_VERSION	3
++#define	GAME_API_VERSION	4
 @@ -83,156 +83,149 @@
  //
  // functions provided by the main engine

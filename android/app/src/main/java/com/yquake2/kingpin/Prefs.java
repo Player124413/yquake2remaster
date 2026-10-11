@@ -139,12 +139,6 @@ public final class Prefs
         }
     }
 
-    /** Internal render resolution scale, 0.5 .. 1.0. */
-    public float renderScale()
-    {
-        return getFloat("render_scale", 1.0f);
-    }
-
     /** Target frame rate; 0 = uncapped. */
     public int fpsLimit()
     {
@@ -269,29 +263,16 @@ public final class Prefs
         args.add("vid_renderer");
         args.add(rendererName());
 
-        // Graphics: on Android the window is always fullscreen and the
-        // render resolution is controlled with r_mode -1 + r_custom*.
+        // Android cannot switch the display into arbitrary resolutions.
+        // Request fullscreen-desktop at the actual display mode instead of
+        // r_mode -1: SDL otherwise rejects the scaled mode and falls back to
+        // a tiny 640x480 window.
         args.add("+set");
         args.add("vid_fullscreen");
-        args.add("1");
-
-        {
-            int w = getInt("custom_width", 0);
-            int h = getInt("custom_height", 0);
-
-            if (w > 0 && h > 0)
-            {
-                args.add("+set");
-                args.add("r_mode");
-                args.add("-1");
-                args.add("+set");
-                args.add("r_customwidth");
-                args.add(String.valueOf(w));
-                args.add("+set");
-                args.add("r_customheight");
-                args.add(String.valueOf(h));
-            }
-        }
+        args.add("2");
+        args.add("+set");
+        args.add("r_mode");
+        args.add("-2");
 
         args.add("+set");
         args.add("r_vsync");

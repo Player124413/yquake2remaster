@@ -16,7 +16,6 @@
 package com.yquake2.kingpin;
 
 import android.os.Bundle;
-import android.util.DisplayMetrics;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
@@ -111,45 +110,14 @@ public class GameActivity extends SDLActivity
     }
 
     /**
-     * Command line for SDL_main. The render scale is translated into a
-     * custom engine resolution here, where the real display metrics are
-     * known.
+     * Command line for SDL_main. Android uses the display's native mode;
+     * asking SDL for a non-native exclusive mode creates a 640x480 fallback
+     * window instead of scaling the game to the screen.
      */
     @Override
     protected String[] getArguments()
     {
         Prefs prefs = new Prefs(this);
-
-        float scale = prefs.renderScale();
-
-        if (scale < 0.25f)
-        {
-            scale = 0.25f;
-        }
-
-        if (scale > 1.0f)
-        {
-            scale = 1.0f;
-        }
-
-        {
-            DisplayMetrics dm = new DisplayMetrics();
-            getWindowManager().getDefaultDisplay().getRealMetrics(dm);
-
-            int w = Math.max(320, Math.round(dm.widthPixels * scale));
-            int h = Math.max(240, Math.round(dm.heightPixels * scale));
-
-            /* round to multiples of 8, some drivers like that */
-            w &= ~7;
-            h &= ~7;
-
-            prefs.setInt("custom_width", w);
-            prefs.setInt("custom_height", h);
-        }
-
-        /* engine renders to a fullscreen scaled window on Android */
-        prefs.setBool("force_fullscreen", true);
-
         String libDir = getApplicationInfo().nativeLibraryDir;
         List<String> args = prefs.engineArgs(this, libDir);
 

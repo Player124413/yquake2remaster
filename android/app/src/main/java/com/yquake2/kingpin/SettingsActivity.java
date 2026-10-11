@@ -197,18 +197,7 @@ public class SettingsActivity extends Activity
                     public void onNothingSelected(AdapterView<?> p) {}
                 });
 
-        label(getString(R.string.render_scale) + " (%)");
-        seekBar(Math.round(prefs.renderScale() * 100) - 25, 75,
-                new SeekBar.OnSeekBarChangeListener()
-                {
-                    public void onProgressChanged(SeekBar sb, int progress, boolean fromUser)
-                    {
-                        prefs.setFloat("render_scale", (25 + progress) / 100.0f);
-                    }
-
-                    public void onStartTrackingTouch(SeekBar sb) {}
-                    public void onStopTrackingTouch(SeekBar sb) {}
-                });
+        label(getString(R.string.android_display_note));
 
         label(getString(R.string.fps_limit));
         spinner(new String[]{"30", "60", "90", "120", "144", "Uncapped"},

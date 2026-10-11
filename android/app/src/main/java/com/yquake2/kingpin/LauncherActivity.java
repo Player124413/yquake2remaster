@@ -326,9 +326,8 @@ public class LauncherActivity extends Activity
     }
 
     /**
-     * Performance presets. Values map to the launcher managed cvars:
-     * 0 quality (full res, GLES3, vsync), 1 balanced, 2 fast,
-     * 3 potato (low res, software renderer).
+     * Performance presets map to the launcher-managed renderer, frame
+     * limit and VSync settings. Android uses the native display resolution.
      */
     private void applyPreset(int preset)
     {
@@ -336,21 +335,18 @@ public class LauncherActivity extends Activity
         {
             case 0:
                 prefs.setInt("renderer", 0);
-                prefs.setFloat("render_scale", 1.0f);
                 prefs.setInt("fps_limit", 60);
                 prefs.setBool("vsync", true);
                 break;
 
             case 1:
                 prefs.setInt("renderer", 0);
-                prefs.setFloat("render_scale", 0.85f);
                 prefs.setInt("fps_limit", 60);
                 prefs.setBool("vsync", true);
                 break;
 
             case 2:
                 prefs.setInt("renderer", 1);
-                prefs.setFloat("render_scale", 0.7f);
                 prefs.setInt("fps_limit", 60);
                 prefs.setBool("vsync", false);
                 break;
@@ -358,7 +354,6 @@ public class LauncherActivity extends Activity
             case 3:
             default:
                 prefs.setInt("renderer", 2);
-                prefs.setFloat("render_scale", 0.5f);
                 prefs.setInt("fps_limit", 60);
                 prefs.setBool("vsync", false);
                 break;
