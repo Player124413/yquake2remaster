@@ -820,6 +820,37 @@ qboolean IN_NumpadIsOn()
 	return false;
 }
 
+#ifdef __ANDROID__
+/*
+ * On Android SDL_StartTextInput() pops up the soft keyboard, so it is
+ * only active while the console or the chat is open.
+ */
+static void
+IN_ManageTextInput(void)
+{
+	static qboolean active = false;
+	qboolean want;
+
+	want = (cls.key_dest == key_console) || (cls.key_dest == key_message);
+
+	if (want != active)
+	{
+		active = want;
+
+		if (want)
+		{
+			SDL_StartTextInput();
+		}
+		else
+		{
+			SDL_StopTextInput();
+		}
+	}
+}
+#else
+#define IN_ManageTextInput()
+#endif
+
 /* ------------------------------------------------------------------ */
 
 /*
@@ -839,6 +870,8 @@ IN_Update(void)
 	static qboolean left_stick[4] = {false, false, false, false};   // left, right, up, down virtual keys
 
 	static int consoleKeyCode = 0;
+
+	IN_ManageTextInput();
 
 	/* Get and process an event */
 	while (SDL_PollEvent(&event))
@@ -2818,7 +2851,11 @@ IN_Init(void)
 	Cmd_AddCommand("+gyroaction", IN_GyroActionDown);
 	Cmd_AddCommand("-gyroaction", IN_GyroActionUp);
 
+#ifndef __ANDROID__
+	/* On Android the soft keyboard would pop up over the game, so
+	   text input is enabled on demand, see IN_ManageTextInput(). */
 	SDL_StartTextInput();
+#endif
 
 	IN_Controller_Init(false);
 

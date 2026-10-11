@@ -200,7 +200,10 @@ MSG_ConfigString_Size(const char *s)
 	return strlen(s) + 4; /* string length + null char + message type + index */
 }
 
-static int
+static qboolean DeltaPartsChanged(const entity_xstate_t *from,
+		const entity_xstate_t *to);
+
+int
 DeltaEntityBits(const entity_xstate_t *from,
 		const entity_xstate_t *to,
 		qboolean newentity,
@@ -361,6 +364,17 @@ DeltaEntityBits(const entity_xstate_t *from,
 		bits |= U_SOUND;
 	}
 
+	/* Kingpin game module extensions */
+	if (DeltaPartsChanged(from, to))
+	{
+		bits |= U_KPPARTS;
+	}
+
+	if ((to->alpha != from->alpha) || (to->kp_scale != from->kp_scale))
+	{
+		bits |= U_KPSCALE;
+	}
+
 	if (newentity || (to->renderfx & RF_BEAM))
 	{
 		bits |= U_OLDORIGIN;
@@ -382,6 +396,43 @@ DeltaEntityBits(const entity_xstate_t *from,
 	}
 
 	return bits;
+}
+
+static qboolean
+DeltaPartsChanged(const entity_xstate_t *from, const entity_xstate_t *to)
+{
+	int i, j;
+
+	if ((to->renderfx2 != from->renderfx2) ||
+		(to->num_parts != from->num_parts))
+	{
+		return true;
+	}
+
+	for (i = 0; i < to->num_parts && i < MAX_MODEL_PARTS; i++)
+	{
+		const model_part_t *a = &from->model_parts[i];
+		const model_part_t *b = &to->model_parts[i];
+
+		if ((a->modelindex != b->modelindex) ||
+			(a->invisible_objects != b->invisible_objects) ||
+			(a->baseskin != b->baseskin))
+		{
+			return true;
+		}
+
+		for (j = 0; j < MAX_MODELPART_OBJECTS; j++)
+		{
+			if ((a->skinnum[j] != b->skinnum[j]) ||
+				(a->hitpoints[j] != b->hitpoints[j]) ||
+				(a->hit_scale[j] != b->hit_scale[j]))
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
 }
 
 size_t
@@ -601,6 +652,27 @@ MSG_DeltaEntity_Size(const entity_xstate_t *from, const entity_xstate_t *to,
 	if (bits & U_SOLID)
 	{
 		sz += 2;
+	}
+
+	if (protocol == PROTOCOL_VERSION)
+	{
+		if (bits & U_KPPARTS)
+		{
+			int n = to->num_parts;
+
+			if (n > MAX_MODEL_PARTS)
+			{
+				n = MAX_MODEL_PARTS;
+			}
+
+			/* num_parts + renderfx2 + parts */
+			sz += 1 + 4 + n * (2 + 1 + 4 + 3 * MAX_MODELPART_OBJECTS);
+		}
+
+		if (bits & U_KPSCALE)
+		{
+			sz += 8;
+		}
 	}
 
 	return sz;
@@ -1261,6 +1333,54 @@ MSG_WriteDeltaEntity(const entity_xstate_t *from,
 	if ((bits & U_SOLID) && (protocol != PROTOCOL_RR22_VERSION))
 	{
 		MSG_WriteShort(msg, to->solid);
+	}
+
+	/* Kingpin game module extensions */
+	if (protocol == PROTOCOL_VERSION)
+	{
+		if (bits & U_KPPARTS)
+		{
+			int i, j;
+			int n = to->num_parts;
+
+			if (n > MAX_MODEL_PARTS)
+			{
+				n = MAX_MODEL_PARTS;
+			}
+
+			MSG_WriteByte(msg, n);
+			MSG_WriteLong(msg, to->renderfx2);
+
+			for (i = 0; i < n; i++)
+			{
+				const model_part_t *part = &to->model_parts[i];
+
+				MSG_WriteShort(msg, part->modelindex);
+				MSG_WriteByte(msg, part->invisible_objects);
+				MSG_WriteLong(msg, part->baseskin);
+
+				for (j = 0; j < MAX_MODELPART_OBJECTS; j++)
+				{
+					MSG_WriteByte(msg, part->skinnum[j]);
+				}
+
+				for (j = 0; j < MAX_MODELPART_OBJECTS; j++)
+				{
+					MSG_WriteByte(msg, part->hitpoints[j]);
+				}
+
+				for (j = 0; j < MAX_MODELPART_OBJECTS; j++)
+				{
+					MSG_WriteByte(msg, part->hit_scale[j]);
+				}
+			}
+		}
+
+		if (bits & U_KPSCALE)
+		{
+			MSG_WriteFloat(msg, to->alpha);
+			MSG_WriteFloat(msg, to->kp_scale);
+		}
 	}
 }
 

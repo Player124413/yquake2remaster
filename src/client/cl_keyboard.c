@@ -149,6 +149,8 @@ keyname_t keynames[] = {
 	{"MENU", K_MENU},
 	{"UNDO", K_UNDO},
 
+	{"CONSOLE", K_CONSOLE},
+
 	// entries for the mapped scancodes, see comment above K_SC_A in keyboard.h
 #define MY_SC_ENTRY(X) { #X , K_ ## X }
 
@@ -817,7 +819,7 @@ Key_Message(int key)
  * Single ascii characters return themselves, while
  * the K_* names are matched up.
  */
-static int
+int
 Key_StringToKeynum(const char *str)
 {
 	static const int num_gamepad_btns = ARRLEN(gamepadbtns);

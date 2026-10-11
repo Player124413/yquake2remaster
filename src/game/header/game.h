@@ -112,6 +112,12 @@ struct edict_s
 	int clipmask;
 	edict_t *owner;
 
+	float voice_pitch; /* used to pitch voices up/down, 1.0 = same, 2.0 = chipmunk (double speed) */
+
+	/* Everything above is the game module ABI prefix.
+	 * Keep it layout compatible with game modules
+	 * (see android/build_game_lib.sh). */
+
 	/* Additional state from ReRelease */
 	entity_rrstate_t rrs;
 	/* the game dll can add anything it wants
@@ -221,6 +227,14 @@ typedef struct
 
 	const char* (*LocalizationMessage)(const char *message, int *sound_index);
 	const char* (*LocalizationUIMessage)(const char *message, const char *default_message);
+
+	/* Kingpin game module extensions. Appended after the classic
+	 * slots to keep old game modules working. */
+	int (*skinindex)(int modelindex, const char *name);
+	void (*ClearObjectBoundsCached)(void);
+	void (*StopRender)(void);
+	void (*GetObjectBounds)(const char *mdx_filename, model_part_t *model_part);
+	void (*SaveCurrentGame)(void);
 } game_import_t;
 
 /* functions exported by the game subsystem */
@@ -274,4 +288,10 @@ typedef struct
 	int edict_size;
 	int num_edicts;             /* current number, <= max_edicts */
 	int max_edicts;
+
+	/* Kingpin game module extensions. Appended after the classic
+	 * slots to keep old game modules working. */
+	int *(*GetNumObjectBounds)(void);
+	void *(*GetObjectBoundsPointer)(void);
+	int (*GetNumJuniors)(void);
 } game_export_t;

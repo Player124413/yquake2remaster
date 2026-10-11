@@ -28,6 +28,7 @@
 #include <errno.h>
 #include "header/client.h"
 #include "input/header/input.h"
+#include "input/header/touch.h"
 
 void CL_ForwardToServer_f(void);
 void CL_Changing_f(void);
@@ -1038,6 +1039,8 @@ CL_Init(void)
 
 	IN_Init();
 
+	TouchInj_Init();
+
 	V_Init();
 
 	net_message.data = net_message_buffer;
@@ -1084,6 +1087,7 @@ CL_Shutdown(void)
 
 	S_Shutdown();
 	IN_Shutdown();
+	TouchInj_Shutdown();
 	VID_Shutdown();
 
 	CL_ClearEntities();

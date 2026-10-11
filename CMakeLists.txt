@@ -190,7 +190,22 @@ endif()
 # Required libraries to build the different components of the binaries. Find
 # them and add the include/linker directories and flags (in case the package
 # manager find it in a weird place).
-if (SDL3_SUPPORT)
+if (ANDROID)
+	# On Android SDL2 is built from source together with the engine,
+	# see android/README.md and android/fetch_deps.sh.
+	set(SDL3_SUPPORT OFF)
+	set(YQ2_SDL2_SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/android/SDL2" CACHE PATH
+		"Path to the SDL2 source tree (Android builds)")
+	if (NOT EXISTS "${YQ2_SDL2_SOURCE_DIR}/CMakeLists.txt")
+		message(FATAL_ERROR "SDL2 sources not found in ${YQ2_SDL2_SOURCE_DIR}. Run android/fetch_deps.sh first.")
+	endif()
+	set(SDL_SHARED ON CACHE BOOL "" FORCE)
+	set(SDL_STATIC OFF CACHE BOOL "" FORCE)
+	set(SDL_TEST OFF CACHE BOOL "" FORCE)
+	add_subdirectory(${YQ2_SDL2_SOURCE_DIR} ${CMAKE_BINARY_DIR}/sdl2)
+	list(APPEND yquake2IncludeDirectories "${YQ2_SDL2_SOURCE_DIR}/include")
+	list(APPEND yquake2SDLLinkerFlags SDL2::SDL2)
+elseif (SDL3_SUPPORT)
 	find_package(SDL3 REQUIRED)
 	add_definitions(-DUSE_SDL3)
 else()
@@ -303,7 +318,7 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID STREQUAL "Clang")
 	endif()
 
 	if ("${ARCH}" STREQUAL "arm")
-		if (CMAKE_SIZEOF_VOID_P EQUAL 4)
+		if (CMAKE_SIZEOF_VOID_P EQUAL 4 AND NOT ANDROID)
 			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv6k")
 		endif()
 	endif()
@@ -516,6 +531,7 @@ set(Client-Source
 	${CLIENT_SRC_DIR}/curl/download.c
 	${CLIENT_SRC_DIR}/curl/qcurl.c
 	${CLIENT_SRC_DIR}/input/gyro.c
+	${CLIENT_SRC_DIR}/input/touch_inject.c
 	${CLIENT_SRC_DIR}/menu/menu.c
 	${CLIENT_SRC_DIR}/menu/qmenu.c
 	${CLIENT_SRC_DIR}/menu/videomenu.c
@@ -601,6 +617,7 @@ set(Client-Header
 	${CLIENT_SRC_DIR}/curl/header/qcurl.h
 	${CLIENT_SRC_DIR}/input/header/gyro.h
 	${CLIENT_SRC_DIR}/input/header/input.h
+	${CLIENT_SRC_DIR}/input/header/touch.h
 	${CLIENT_SRC_DIR}/menu/header/qmenu.h
 	${CLIENT_SRC_DIR}/sound/header/local.h
 	${CLIENT_SRC_DIR}/sound/header/qal.h
@@ -786,6 +803,7 @@ set(GL3-Source
 	${REF_SRC_DIR}/gl3/gl3_warp.c
 	${REF_SRC_DIR}/gl3/gl3_shaders.c
 	${REF_SRC_DIR}/files/common.c
+	${REF_SRC_DIR}/files/etc2.c
 	${REF_SRC_DIR}/files/glshaders.c
 	${REF_SRC_DIR}/files/light.c
 	${REF_SRC_DIR}/files/maps.c
@@ -977,7 +995,20 @@ set(VK-Header
 
 # Main Quake 2 executable
 
-if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+if(ANDROID)
+	# On Android the client is a shared library loaded by the SDL2 Java
+	# bootstrap (SDLActivity). It must be named libmain.so and export
+	# SDL_main(), which is what renaming main() in the startup file
+	# takes care of.
+	add_library(main SHARED ${Client-Source} ${Client-SDL-Source} ${Client-Header}
+			${Platform-Specific-Source} ${Backends-Generic-Source}
+			${BACKENDS_SRC_DIR}/unix/android_jni.c)
+	set_source_files_properties(${BACKENDS_SRC_DIR}/unix/main.c PROPERTIES
+			COMPILE_DEFINITIONS "main=SDL_main"
+			)
+	target_link_libraries(main ${yquake2LinkerFlags} ${yquake2ClientLinkerFlags}
+		${yquake2SDLLinkerFlags} ${yquake2ZLibLinkerFlags})
+elseif(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
 	add_executable(yquake2 WIN32 ${Client-Source} ${Client-SDL-Source} ${Client-Header}
 			${Platform-Specific-Source} ${Backends-Generic-Source})
 	set_target_properties(yquake2 PROPERTIES
@@ -1014,6 +1045,8 @@ else()
 		target_link_libraries(quake2 SDL3::SDL3)
 	endif()
 endif()
+
+if(NOT ANDROID)
 
 # Quake 2 Dedicated Server
 add_executable(q2ded ${Server-Source} ${Server-Header} ${Platform-Specific-Source}
@@ -1058,10 +1091,22 @@ endif()
 
 endif()
 
+endif() # NOT ANDROID
+
+# On Android plugin libraries must be ordinary shared libraries with the
+# usual "lib" prefix, so that the Android Gradle Plugin packages them.
+if(ANDROID)
+	set(YQ2_PLUGIN_LIBTYPE SHARED)
+	set(YQ2_PLUGIN_PREFIX "lib")
+else()
+	set(YQ2_PLUGIN_LIBTYPE MODULE)
+	set(YQ2_PLUGIN_PREFIX "")
+endif()
+
 # Build the game dynamic library
-add_library(game MODULE ${Game-Source} ${Game-Header})
+add_library(game ${YQ2_PLUGIN_LIBTYPE} ${Game-Source} ${Game-Header})
 set_target_properties(game PROPERTIES
-		PREFIX ""
+		PREFIX "${YQ2_PLUGIN_PREFIX}"
 		SUFFIX ${CMAKE_SHARED_LIBRARY_SUFFIX}
 		)
 get_property(isMultiConfig GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
@@ -1081,9 +1126,9 @@ target_link_libraries(game ${yquake2LinkerFlags})
 if(${GL1_RENDERER})
 
 # Build the GL1 dynamic library
-add_library(ref_gl1 MODULE ${GL1-Source} ${GL1-Header} ${REF-Platform-Specific-Source})
+add_library(ref_gl1 ${YQ2_PLUGIN_LIBTYPE} ${GL1-Source} ${GL1-Header} ${REF-Platform-Specific-Source})
 set_target_properties(ref_gl1 PROPERTIES
-		PREFIX ""
+		PREFIX "${YQ2_PLUGIN_PREFIX}"
 		LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/release
 		RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/release
 		SUFFIX ${CMAKE_SHARED_LIBRARY_SUFFIX}
@@ -1099,9 +1144,9 @@ endif()
 if(${GL3_RENDERER})
 
 # Build the GL3 dynamic library
-add_library(ref_gl3 MODULE ${GL3-Source} ${Glad-GL3-Source} ${GL3-Header} ${Glad-GL3-Header} ${REF-Platform-Specific-Source})
+add_library(ref_gl3 ${YQ2_PLUGIN_LIBTYPE} ${GL3-Source} ${Glad-GL3-Source} ${GL3-Header} ${Glad-GL3-Header} ${REF-Platform-Specific-Source})
 set_target_properties(ref_gl3 PROPERTIES
-		PREFIX ""
+		PREFIX "${YQ2_PLUGIN_PREFIX}"
 		LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/release
 		RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/release
 		SUFFIX ${CMAKE_SHARED_LIBRARY_SUFFIX}
@@ -1117,9 +1162,9 @@ endif()
 if(${GL4_RENDERER})
 
 # Build the GL4 dynamic library
-add_library(ref_gl4 MODULE ${GL4-Source} ${Glad-GL4-Source} ${GL4-Header} ${Glad-GL4-Header} ${REF-Platform-Specific-Source})
+add_library(ref_gl4 ${YQ2_PLUGIN_LIBTYPE} ${GL4-Source} ${Glad-GL4-Source} ${GL4-Header} ${Glad-GL4-Header} ${REF-Platform-Specific-Source})
 set_target_properties(ref_gl4 PROPERTIES
-		PREFIX ""
+		PREFIX "${YQ2_PLUGIN_PREFIX}"
 		LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/release
 		RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/release
 		SUFFIX ${CMAKE_SHARED_LIBRARY_SUFFIX}
@@ -1135,9 +1180,9 @@ endif()
 if(${GLES3_RENDERER})
 
 # Build the GLES3 dynamic library
-add_library(ref_gles3 MODULE ${GL3-Source} ${Glad-GLES3-Source} ${GL3-Header} ${Glad-GLES3-Header} ${REF-Platform-Specific-Source})
+add_library(ref_gles3 ${YQ2_PLUGIN_LIBTYPE} ${GL3-Source} ${Glad-GLES3-Source} ${GL3-Header} ${Glad-GLES3-Header} ${REF-Platform-Specific-Source})
 set_target_properties(ref_gles3 PROPERTIES
-		PREFIX ""
+		PREFIX "${YQ2_PLUGIN_PREFIX}"
 		#COMPILE_DEFINITIONS "YQ2_GL3_GLES3=1;YQ2_GL3_GLES=1"
 		LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/release
 		RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/release
@@ -1155,9 +1200,9 @@ endif()
 if(${SOFT_RENDERER})
 
 # Build the soft renderer dynamic library
-add_library(ref_soft MODULE ${SOFT-Source} ${SOFT-Header} ${REF-Platform-Specific-Source})
+add_library(ref_soft ${YQ2_PLUGIN_LIBTYPE} ${SOFT-Source} ${SOFT-Header} ${REF-Platform-Specific-Source})
 set_target_properties(ref_soft PROPERTIES
-		PREFIX ""
+		PREFIX "${YQ2_PLUGIN_PREFIX}"
 		LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/release
 		RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/release
 		SUFFIX ${CMAKE_SHARED_LIBRARY_SUFFIX}
@@ -1172,9 +1217,9 @@ endif()
 if(${VK_RENDERER})
 
 # Build the vk renderer dynamic library
-add_library(ref_vk MODULE ${VK-Source} ${VK-Header} ${REF-Platform-Specific-Source})
+add_library(ref_vk ${YQ2_PLUGIN_LIBTYPE} ${VK-Source} ${VK-Header} ${REF-Platform-Specific-Source})
 set_target_properties(ref_vk PROPERTIES
-		PREFIX ""
+		PREFIX "${YQ2_PLUGIN_PREFIX}"
 		LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/release
 		RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/release
 		SUFFIX ${CMAKE_SHARED_LIBRARY_SUFFIX}
@@ -1189,9 +1234,9 @@ endif()
 if(${GLES1_RENDERER})
 
 # Build the GLES1 dynamic library
-add_library(ref_gles1 MODULE ${GL1-Source} ${Glad-GLES1-Source} ${GL1-Header} ${Glad-GLES1-Header} ${REF-Platform-Specific-Source})
+add_library(ref_gles1 ${YQ2_PLUGIN_LIBTYPE} ${GL1-Source} ${Glad-GLES1-Source} ${GL1-Header} ${Glad-GLES1-Header} ${REF-Platform-Specific-Source})
 set_target_properties(ref_gles1 PROPERTIES
-		PREFIX ""
+		PREFIX "${YQ2_PLUGIN_PREFIX}"
 		#COMPILE_DEFINITIONS "YQ2_GL1_GLES=1"
 		LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/release
 		RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/release

@@ -1,0 +1,90 @@
+apply plugin: 'com.android.application'
+
+android {
+    namespace "com.yquake2.kingpin"
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.yquake2.kingpin"
+        minSdk 21
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+
+        externalNativeBuild {
+            cmake {
+                arguments "-DANDROID_STL=c++_static",
+                          "-DANDROID_PLATFORM=android-21",
+                          "-DYQ2_SDL2_SOURCE_DIR=${project.rootDir}/SDL2",
+                          // Mobile build: GLES1/GLES3 + software renderers,
+                          // no desktop GL/Vulkan/cURL/OpenAL/viewer/tools.
+                          "-DGL1_RENDERER=OFF",
+                          "-DGL3_RENDERER=OFF",
+                          "-DGL4_RENDERER=OFF",
+                          "-DGLES1_RENDERER=ON",
+                          "-DGLES3_RENDERER=ON",
+                          "-DSOFT_RENDERER=ON",
+                          "-DVK_RENDERER=OFF",
+                          "-DVIEWER=OFF",
+                          "-DPAKEXTRACT=OFF",
+                          "-DCURL_SUPPORT=OFF",
+                          "-DOPENAL_SUPPORT=OFF",
+                          "-DXDG_SUPPORT=OFF",
+                          "-DSDL3_SUPPORT=OFF"
+                targets "SDL2", "main", "game", "ref_gles3", "ref_gles1", "ref_soft"
+            }
+        }
+
+        ndk {
+            abiFilters 'arm64-v8a', 'armeabi-v7a'
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            // The engine build is driven by the repository root CMakeLists.txt,
+            // which supports the ANDROID platform directly.
+            path '../../../../CMakeLists.txt'
+            version '3.22.1'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            debuggable false
+        }
+        debug {
+            debuggable true
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    sourceSets {
+        main {
+            // SDL2 Java bootstrap sources are copied here by fetch_deps.sh
+            java.srcDirs = ['src/main/java']
+        }
+    }
+
+    packagingOptions {
+        jniLibs {
+            // Keep the renderer modules and game lib for dlopen() by path.
+            useLegacyPackaging true
+            keepDebugSymbols += ['**/*.so']
+        }
+        doNotStrip '**/*.so'
+    }
+
+    lint {
+        abortOnError false
+    }
+}
+
+dependencies {
+}

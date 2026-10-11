@@ -286,6 +286,7 @@ extern qboolean	chat_team;
 
 qboolean IN_NumpadIsOn();
 void Char_Event(int key);
+int Key_StringToKeynum(const char *str);
 void Key_Event(int key, qboolean down, qboolean special);
 void Key_Init(void);
 void Key_Shutdown(void);

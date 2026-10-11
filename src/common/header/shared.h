@@ -608,6 +608,11 @@ typedef struct cplane_s
 	byte type; /* for fast side tests */
 	byte signbits; /* signx + (signy<<1) + (signz<<2) */
 	byte pad[2];
+
+	/* Kingpin game module extensions: specular light cache */
+	int spec_updateframe;
+	int spec_updateframe_backface;
+	byte spec_render, spec_render_back;
 } cplane_t;
 
 /* structure offset for asm code */
@@ -659,6 +664,11 @@ typedef enum
 {
 	/* can accelerate and turn */
 	PM_NORMAL,
+	PM_NORMAL_WITH_JETPACK,
+	PM_HOVERCAR,           /* flying hovercar */
+	PM_HOVERCAR_GROUND,    /* grounded hovercar */
+	PM_BIKE,               /* motorcycle */
+	PM_CAR,                /* uses vehicle code */
 	PM_SPECTATOR,
 	/* no acceleration or turning */
 	PM_DEAD,
@@ -690,12 +700,15 @@ typedef struct
 	byte pm_time;               /* each unit = 8 ms */
 	short gravity;
 	short delta_angles[3];      /* add to command angles to get view direction
-								 * changed by spawns, rotating objects, and teleporters */
+						* changed by spawns, rotating objects, and teleporters */
+
+	byte runscale;              /* scales the running speed */
 } pmove_state_t;
 
 /* button bits */
 #define BUTTON_ATTACK 1
 #define BUTTON_USE 2
+#define BUTTON_ACTIVATE 4
 #define BUTTON_ANY 128 /* any key whatsoever */
 
 /* usercmd_t is sent to the server each client frame */
@@ -1362,8 +1375,20 @@ typedef enum
 #define CS_SHADOWLIGHTS (CS_LIGHTS + MAX_LIGHTSTYLES)
 #define CS_ITEMS (CS_SHADOWLIGHTS + MAX_SHADOW_LIGHTS)
 #define CS_PLAYERSKINS (CS_ITEMS + MAX_ITEMS)
-#define CS_GENERAL (CS_PLAYERSKINS + MAX_CLIENTS)
-#define MAX_CONFIGSTRINGS (CS_GENERAL + MAX_GENERAL)
+#define CS_MODELSKINS (CS_PLAYERSKINS + MAX_CLIENTS) /* model + skin name pairs */
+#define CS_GENERAL (CS_MODELSKINS + MAX_MODELS)
+
+/* Kingpin game module extras */
+#define MAX_LIGHTFLARES 128
+#define MAX_JUNIORS 32
+#define CS_LIGHTFLARES (CS_GENERAL + MAX_GENERAL)
+#define CS_JUNIORS (CS_LIGHTFLARES + MAX_LIGHTFLARES)
+#define CS_SERVER_VERSION (CS_JUNIORS + MAX_JUNIORS)
+#define CS_DENSITY (CS_SERVER_VERSION + 1)
+#define CS_FOGVAL (CS_DENSITY + 1)
+#define CS_DENSITY2 (CS_FOGVAL + 1)
+#define CS_FOGVAL2 (CS_DENSITY2 + 1)
+#define MAX_CONFIGSTRINGS (CS_FOGVAL2 + 1)
 
 /* Originally was 64 as MAX_QPATH */
 #define MAX_CONFIGSTRING 128
@@ -1385,6 +1410,61 @@ typedef enum
 	EV_PLAYER_TELEPORT,
 	EV_OTHER_TELEPORT
 } entity_event_t;
+
+/* model part system (multi part models, used by Kingpin game modules) */
+#define MAX_MODEL_PARTS 8
+#define MAX_MODELPART_OBJECTS 8 /* bound to 8 by invisible_objects bit flags */
+#define MAX_MODEL_DIR_LIGHTS 3
+
+typedef struct
+{
+	vec3_t mins, maxs;
+} object_bounds_t;
+
+typedef struct model_part_s
+{
+	int modelindex;             /* leave as 0 if blank */
+	byte invisible_objects;     /* bit flags that define which sub-parts NOT to display when set */
+	byte skinnum[MAX_MODELPART_OBJECTS];
+
+	/* server only data used for collision detection, etc */
+	int object_bounds[MAX_MODELPART_OBJECTS];
+	char *objectbounds_filename;
+
+	int baseskin;
+	byte hitpoints[MAX_MODELPART_OBJECTS];
+	byte hit_scale[MAX_MODELPART_OBJECTS];
+} model_part_t;
+
+typedef struct
+{
+	int light_indexes[MAX_MODEL_DIR_LIGHTS];
+	vec3_t light_vecs[MAX_MODEL_DIR_LIGHTS];
+	vec3_t light_colors[MAX_MODEL_DIR_LIGHTS];
+	float light_intensities[MAX_MODEL_DIR_LIGHTS];
+	byte light_styles[MAX_MODEL_DIR_LIGHTS];
+	int num_dir_lights;
+
+	/* below this is not sent to clients (server side only) */
+	vec3_t light_orgs[MAX_MODEL_DIR_LIGHTS];
+} model_lighting_t;
+
+typedef struct flamejunc_s
+{
+	vec3_t org, vel;
+	float start_width, end_width, start_height, end_height;
+	float lifetime, fadein_time;
+	float start_alpha, end_alpha;
+
+	/* current values */
+	float aged, alpha;
+	float width, height;
+
+	vec3_t unitvel;
+	int hit_wall;
+
+	struct flamejunc_s *next;
+} flamejunc_t;
 
 /* entity_state_t is the information conveyed from the server
  * in an update message about entities that the client will
@@ -1409,6 +1489,26 @@ typedef struct entity_state_s
 	int event;              /* impulse events -- muzzle flashes, footsteps, etc */
 							/* events only go out for a single frame, they */
 							/* are automatically cleared each frame */
+
+	/* Kingpin game module extensions. Keep the layout in sync with
+	 * the game module ABI (see android/build_game_lib.sh). */
+	int renderfx2;
+
+	int num_parts;
+	model_part_t model_parts[MAX_MODEL_PARTS];
+
+	model_lighting_t model_lighting;
+
+	vec3_t last_lighting_update_pos;
+	vec3_t last_lighting_vec_update_pos;
+
+	flamejunc_t *flamejunc_head;
+	flamejunc_t *flamejunc_head2;
+	int last_time, prev_last_time;
+	byte broken_flag;
+
+	float alpha;
+	float scale;
 } entity_state_t;
 
 /* ReRelease states */
@@ -1442,6 +1542,26 @@ typedef struct entity_xstate_s
 	int event;              /* impulse events -- muzzle flashes, footsteps, etc */
 							/* events only go out for a single frame, they */
 							/* are automatically cleared each frame */
+
+	/* keep in sync with entity_state_t */
+	int renderfx2;
+
+	int num_parts;
+	model_part_t model_parts[MAX_MODEL_PARTS];
+
+	model_lighting_t model_lighting;
+
+	vec3_t last_lighting_update_pos;
+	vec3_t last_lighting_vec_update_pos;
+
+	flamejunc_t *flamejunc_head;
+	flamejunc_t *flamejunc_head2;
+	int last_time, prev_last_time;
+	byte broken_flag;
+
+	float alpha;
+	float kp_scale; /* entity_state_t->scale (float); renamed here
+	                 * because the RR scale below took that name */
 
 	/* New protocol fields, sync with entity_rrstate_t */
 	vec3_t scale; /* model scale */
@@ -1484,6 +1604,12 @@ typedef struct
 	int rdflags;                /* refdef flags */
 
 	short stats[MAX_STATS];     /* fast status bar updates */
+
+	/* Kingpin game module extensions (first person weapon model).
+	 * Keep the layout in sync with the game module ABI. */
+	int num_parts;
+	model_part_t model_parts[MAX_MODEL_PARTS];
+	int weapon_usage;
 } player_state_t;
 
 /* Fog */

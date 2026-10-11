@@ -393,6 +393,10 @@ enum clc_ops_e
 #define U_SKIN16 (1 << 25)
 #define U_SOUND (1 << 26)
 #define U_SOLID (1 << 27)
+#define U_KPSCALE (1 << 28)     /* Kingpin alpha/scale follow */
+
+/* second byte (free slot) */
+#define U_KPPARTS (1 << 13)     /* Kingpin model parts + renderfx2 follow */
 
 /* CMD - Command text buffering and command execution */
 
@@ -975,6 +979,7 @@ void Sys_SetHighDPIMode(void);
 
 // misc.c
 const char *Sys_GetBinaryDir(void);
+void Sys_SetBinaryDir(const char *dir);
 void Sys_SetupFPU(void);
 
 /* ======================================================================= */

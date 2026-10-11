@@ -112,6 +112,7 @@ typedef struct
 
 	// ----
 
+	qboolean etc2;          /* are ETC2 compressed textures available? */
 	qboolean anisotropic; // is GL_EXT_texture_filter_anisotropic supported?
 	qboolean debug_output; // is GL_ARB_debug_output supported?
 	qboolean stencil; // Do we have a stencil buffer?

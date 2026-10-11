@@ -1,0 +1,451 @@
+--- a/gamesrc/Q_SHARED.H	2026-10-10 23:48:08.284020166 +0000
++++ b/gamesrc/Q_SHARED.H	2026-10-11 00:03:07.776095034 +0000
+@@ -1180,43 +1180,49 @@
+ // the server to all connected clients.
+ // Each config string can be at most MAX_QPATH characters.
+ //
+-#define	CS_NAME				0
+-#define	CS_CDTRACK			1
+-
+-#define CS_DENSITY			2
+-#define CS_FOGVAL			3
+-
+-#define CS_DENSITY2			4
+-#define CS_FOGVAL2			5
+-
+-#define	CS_SKY				6
+-#define	CS_STATUSBAR		7		// display program string
+-
+-// RAFAEL
+-//#define CS_SKYBOX_ORIGIN		10
+-/*
+-#define	CS_SKY				2
+-#define	CS_SKYAXIS			3		// %f %f %f format
+-#define	CS_SKYROTATE		4
+-#define	CS_STATUSBAR		5		// display program string
+-*/
+-
+-#define	CS_SERVER_VERSION	29		// so new clients can decide which version of download code to use
+-
+-#define	CS_MAXCLIENTS		30
+-#define	CS_MAPCHECKSUM		31		// for catching cheater maps
+-
+-#define	CS_MODELS			32
+-#define	CS_SOUNDS			(CS_MODELS+MAX_MODELS)
+-#define	CS_IMAGES			(CS_SOUNDS+MAX_SOUNDS)
+-#define CS_MODELSKINS		(CS_IMAGES+MAX_IMAGES)
+-#define	CS_LIGHTS			(CS_MODELSKINS+MAX_MODELS)
+-#define	CS_ITEMS			(CS_LIGHTS+MAX_LIGHTSTYLES)
+-#define	CS_PLAYERSKINS		(CS_ITEMS+MAX_ITEMS)
+-#define	CS_LIGHTFLARES		(CS_PLAYERSKINS+MAX_CLIENTS)
+-#define	CS_JUNIORS			(CS_LIGHTFLARES+MAX_LIGHTFLARES)
+-#define CS_GENERAL			(CS_JUNIORS+MAX_JUNIOR_STRINGS)
+-#define	MAX_CONFIGSTRINGS	(CS_GENERAL+MAX_GENERAL)
++/* yquake2remaster configstring layout (the game module ABI).
++ * The limits below must match the engine. */
++#undef MAX_MODELS
++#define MAX_MODELS 512
++#undef MAX_SOUNDS
++#define MAX_SOUNDS 512
++#undef MAX_ITEMS
++#define MAX_ITEMS 512
++#define MAX_SHADOW_LIGHTS 256
++#define MAX_LIGHTFLARES 128
++#define CUSTOM_PLAYER_MODEL (MAX_MODELS - 1)
++#define MAX_JUNIORS 32
++
++#define CS_NAME 0
++#define CS_CDTRACK 1
++#define CS_SKY 2
++#define CS_SKYAXIS 3
++#define CS_SKYROTATE 4
++#define CS_STATUSBAR 5
++#define CS_STATUSBAR_END 29
++#define CS_STATUSBAR_SPACE(i) ((CS_STATUSBAR_END - (i)) * MAX_QPATH)
++#define CS_AIRACCEL 29
++#define CS_MAXCLIENTS 30
++#define CS_MAPCHECKSUM 31
++#define CS_STORY 32
++#define CS_SKIP 33
++#define CS_MODELS 34
++#define CS_SOUNDS (CS_MODELS + MAX_MODELS)
++#define CS_IMAGES (CS_SOUNDS + MAX_SOUNDS)
++#define CS_LIGHTS (CS_IMAGES + MAX_IMAGES)
++#define CS_SHADOWLIGHTS (CS_LIGHTS + MAX_LIGHTSTYLES)
++#define CS_ITEMS (CS_SHADOWLIGHTS + MAX_SHADOW_LIGHTS)
++#define CS_PLAYERSKINS (CS_ITEMS + MAX_ITEMS)
++#define CS_MODELSKINS (CS_PLAYERSKINS + MAX_CLIENTS)
++#define CS_GENERAL (CS_MODELSKINS + MAX_MODELS)
++#define CS_LIGHTFLARES (CS_GENERAL + MAX_GENERAL)
++#define CS_JUNIORS (CS_LIGHTFLARES + MAX_LIGHTFLARES)
++#define CS_SERVER_VERSION (CS_JUNIORS + MAX_JUNIORS)
++#define CS_DENSITY (CS_SERVER_VERSION + 1)
++#define CS_FOGVAL (CS_DENSITY + 1)
++#define CS_DENSITY2 (CS_FOGVAL + 1)
++#define CS_FOGVAL2 (CS_DENSITY2 + 1)
++#define MAX_CONFIGSTRINGS (CS_FOGVAL2 + 1)
+ 
+ 
+ // Ridah, Lightflares
+@@ -1379,7 +1385,7 @@
+ 	vec3_t	angles;
+ 	vec3_t	old_origin;		// for lerping
+ 	int		modelindex;
+-//	int		modelindex2, modelindex3, modelindex4;	// weapons, CTF flags, etc
++	int		modelindex2, modelindex3, modelindex4;	// weapons, CTF flags, etc
+ 	int		frame;
+ 	int		skinnum;
+ 	int		effects;
+--- a/gamesrc/GAME.H	2026-10-10 23:48:08.284020166 +0000
++++ b/gamesrc/GAME.H	2026-10-10 23:48:08.336021325 +0000
+@@ -83,156 +83,149 @@
+ //
+ // functions provided by the main engine
+ //
++/* yquake2remaster game_import_t (the game module ABI).  Extra
++ * function slots are appended after the classic Quake2 ones. */
++#ifndef YQ2_ATTR_NORETURN_FUNCPTR
++#define YQ2_ATTR_NORETURN_FUNCPTR
++#endif
+ typedef struct
+ {
+-	// special messages
+-	void	(*bprintf) (int printlevel, char *fmt, ...);
+-	void	(*dprintf) (char *fmt, ...);
+-	void	(*cprintf) (edict_t *ent, int printlevel, char *fmt, ...);
+-	void	(*centerprintf) (edict_t *ent, char *fmt, ...);
+-	void	(*sound) (edict_t *ent, int channel, int soundindex, float volume, float attenuation, float timeofs);
+-	void	(*positioned_sound) (vec3_t origin, edict_t *ent, int channel, int soundinedex, float volume, float attenuation, float timeofs);
+-
+-	// config strings hold all the index strings, the lightstyles,
+-	// and misc data like the sky definition and cdtrack.
+-	// All of the current configstrings are sent to clients when
+-	// they connect, and changes are sent to all connected clients.
+-	void	(*configstring) (int num, char *string);
+-
+-	void	(*error) (char *fmt, ...);
+-
+-	// the *index functions create configstrings and some internal server state
+-	int		(*modelindex) (char *name);
+-	int		(*soundindex) (char *name);
+-	int		(*imageindex) (char *name);
+-
+-	int		(*skinindex) (int modelindex, char *name);
+-
+-	void	(*setmodel) (edict_t *ent, char *name);
+-
+-	// collision detection
+-	trace_t	(*trace) (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, edict_t *passent, int contentmask);
+-	int		(*pointcontents) (vec3_t point);
+-	qboolean	(*inPVS) (vec3_t p1, vec3_t p2);
+-	qboolean	(*inPHS) (vec3_t p1, vec3_t p2);
+-	void		(*SetAreaPortalState) (int portalnum, qboolean open);
+-	qboolean	(*AreasConnected) (int area1, int area2);
+-
+-	// an entity will never be sent to a client or used for collision
+-	// if it is not passed to linkentity.  If the size, position, or
+-	// solidity changes, it must be relinked.
+-	void	(*linkentity) (edict_t *ent);
+-	void	(*unlinkentity) (edict_t *ent);		// call before removing an interactive edict
+-	int		(*BoxEdicts) (vec3_t mins, vec3_t maxs, edict_t **list,	int maxcount, int areatype);
+-	void	(*Pmove) (pmove_t *pmove);		// player movement code common with client prediction
+-
+-	// network messaging
+-	void	(*multicast) (vec3_t origin, multicast_t to);
+-	void	(*unicast) (edict_t *ent, qboolean reliable);
+-	void	(*WriteChar) (int c);
+-	void	(*WriteByte) (int c);
+-	void	(*WriteShort) (int c);
+-	void	(*WriteLong) (int c);
+-	void	(*WriteFloat) (float f);
+-	void	(*WriteString) (char *s);
+-	void	(*WritePosition) (vec3_t pos);	// some fractional bits
+-	void	(*WriteDir) (vec3_t pos);		// single byte encoded, very coarse
+-	void	(*WriteAngle) (float f);
+-
+-	// managed memory allocation
+-	void	*(*TagMalloc) (int size, int tag);
+-	void	(*TagFree) (void *block);
+-	void	(*FreeTags) (int tag);
+-
+-	// Ridah
+-	void	(*ClearObjectBoundsCached) (void);
+-	void	(*StopRender) (void);
+-
+-	// console variable interaction
+-	cvar_t	*(*cvar) (char *var_name, char *value, int flags);
+-	cvar_t	*(*cvar_set) (char *var_name, char *value);
+-	cvar_t	*(*cvar_forceset) (char *var_name, char *value);
+-
+-	// ClientCommand and ServerCommand parameter access
+-	int		(*argc) (void);
+-	char	*(*argv) (int n);
+-	char	*(*args) (void);	// concatenation of all argv >= 1
+-
+-	// add commands to the server console as if they were typed in
+-	// for map changing, etc
+-	void	(*AddCommandString) (char *text);
+-
+-	void	(*DebugGraph) (float value, int color);
+-
+-	// Ridah, MDX
+-	void	(*GetObjectBounds) ( char *mdx_filename, model_part_t *model_part );
+-	// done.
+-
+-	// Ridah, so we can save the game when traversing to a new level (so hiredguy's get restored when restarting a map)
+-	void	(*SaveCurrentGame) (void);
++	char name[16];
++	int ofs;
++	int num;
++	vec3_t mins;
++	vec3_t maxs;
++} dmdxframegroup_t;
+ 
++typedef struct
++{
++	/* special messages */
++	void (*bprintf)(int printlevel, const char *fmt, ...);
++	void (*dprintf)(const char *fmt, ...);
++	void (*cprintf)(const edict_t *ent, int printlevel, const char *fmt, ...);
++	void (*centerprintf)(const edict_t *ent, const char *fmt, ...);
++	void (*sound)(const edict_t *ent, int channel, int soundindex, float volume,
++			float attenuation, float timeofs);
++	void (*positioned_sound)(const vec3_t origin, const edict_t *ent, int channel,
++			int soundinedex, float volume, float attenuation, float timeofs);
++
++	void (*configstring)(int num, const char *string);
++
++	YQ2_ATTR_NORETURN_FUNCPTR void (*error)(const char *fmt, ...);
++
++	int (*modelindex)(const char *name);
++	int (*soundindex)(const char *name);
++	int (*imageindex)(const char *name);
++
++	void (*setmodel)(edict_t *ent, const char *name);
++
++	/* collision detection */
++	trace_t (*trace)(const vec3_t start, const vec3_t mins, const vec3_t maxs,
++			const vec3_t end, const edict_t *passent, int contentmask);
++	int (*pointcontents)(const vec3_t point);
++	qboolean (*inPVS)(vec3_t p1, vec3_t p2);
++	qboolean (*inPHS)(vec3_t p1, vec3_t p2);
++	void (*SetAreaPortalState)(int portalnum, qboolean open);
++	qboolean (*AreasConnected)(int area1, int area2);
++
++	void (*linkentity)(edict_t *ent);
++	void (*unlinkentity)(edict_t *ent);
++	int (*BoxEdicts)(const vec3_t mins, const vec3_t maxs, edict_t **list, int maxcount,
++			int areatype);
++	void (*Pmove)(pmove_t *pmove);
++
++	/* network messaging */
++	void (*multicast)(const vec3_t origin, multicast_t to);
++	void (*unicast)(const edict_t *ent, qboolean reliable);
++	void (*WriteChar)(int c);
++	void (*WriteByte)(int c);
++	void (*WriteShort)(int c);
++	void (*WriteLong)(int c);
++	void (*WriteFloat)(float f);
++	void (*WriteString)(const char *s);
++	void (*WritePosition)(const vec3_t pos);
++	void (*WriteDir)(const vec3_t pos);
++	void (*WriteAngle)(float f);
++
++	/* managed memory allocation */
++	void *(*TagMalloc)(int size, int tag);
++	void (*TagFree)(void *block);
++	void (*FreeTags)(int tag);
++
++	/* console variable interaction */
++	cvar_t *(*cvar)(const char *var_name, const char *value, int flags);
++	cvar_t *(*cvar_set)(const char *var_name, const char *value);
++	cvar_t *(*cvar_forceset)(const char *var_name, const char *value);
++
++	int (*argc)(void);
++	char *(*argv)(int n);
++	char *(*args)(void);
++
++	void (*AddCommandString)(const char *text);
++
++	void (*DebugGraph)(float value, int color);
++
++	/* Extension to classic Quake2 API */
++	int (*LoadFile)(const char *name, void **buf);
++	void (*FreeFile)(void *buf);
++	const char * (*Gamedir)(void);
++	void (*CreatePath)(const char *path);
++	const char * (*GetConfigString)(int num);
++	const dmdxframegroup_t * (*GetModelInfo)(int index, int *num, float *mins, float *maxs);
++	void (*GetModelFrameInfo)(int index, int num, float *mins, float *maxs);
++	void (*PmoveEx)(pmove_t *pmove, int *origin);
++	void * (*TagRealloc)(void *ptr, size_t size, unsigned short tag);
++	const char* (*LocalizationMessage)(const char *message, int *sound_index);
++	const char* (*LocalizationUIMessage)(const char *message, const char *default_message);
++
++	/* Kingpin game module extensions */
++	int (*skinindex)(int modelindex, const char *name);
++	void (*ClearObjectBoundsCached)(void);
++	void (*StopRender)(void);
++	void (*GetObjectBounds)(const char *mdx_filename, model_part_t *model_part);
++	void (*SaveCurrentGame)(void);
+ } game_import_t;
+ 
+ //
+ // functions exported by the game subsystem
+ //
++/* yquake2remaster game_export_t (the game module ABI).  Extra
++ * function slots are appended after the classic Quake2 ones. */
+ typedef struct
+ {
+-	int			apiversion;
++	int apiversion;
++
++	void (*Init)(void);
++	void (*Shutdown)(void);
++
++	void (*SpawnEntities)(const char *mapname, char *entstring, const char *spawnpoint);
++
++	void (*WriteGame)(const char *filename, qboolean autosave);
++	void (*ReadGame)(const char *filename);
++
++	void (*WriteLevel)(const char *filename);
++	void (*ReadLevel)(const char *filename);
++
++	qboolean (*ClientConnect)(edict_t *ent, char *userinfo);
++	void (*ClientBegin)(edict_t *ent);
++	void (*ClientUserinfoChanged)(edict_t *ent, char *userinfo);
++	void (*ClientDisconnect)(edict_t *ent);
++	void (*ClientCommand)(edict_t *ent);
++	void (*ClientThink)(edict_t *ent, usercmd_t *cmd);
++
++	void (*RunFrame)(void);
++
++	void (*ServerCommand)(void);
++
++	struct edict_s *edicts;
++	int edict_size;
++	int num_edicts;
++	int max_edicts;
+ 
+-	// the init function will only be called when a game starts,
+-	// not each time a level is loaded.  Persistant data for clients
+-	// and the server can be allocated in init
+-	void		(*Init) (void);
+-	void		(*Shutdown) (void);
+-
+-	// each new level entered will cause a call to SpawnEntities
+-	void		(*SpawnEntities) (char *mapname, char *entstring, char *spawnpoint);
+-
+-	// Read/Write Game is for storing persistant cross level information
+-	// about the world state and the clients.
+-	// WriteGame is called every time a level is exited.
+-	// ReadGame is called on a loadgame.
+-	void		(*WriteGame) (char *filename, qboolean autosave);
+-	void		(*ReadGame) (char *filename);
+-
+-	// ReadLevel is called after the default map information has been
+-	// loaded with SpawnEntities
+-	void		(*WriteLevel) (char *filename);
+-	void		(*ReadLevel) (char *filename);
+-
+-	qboolean	(*ClientConnect) (edict_t *ent, char *userinfo);
+-	void		(*ClientBegin) (edict_t *ent);
+-	void		(*ClientUserinfoChanged) (edict_t *ent, char *userinfo);
+-	void		(*ClientDisconnect) (edict_t *ent);
+-	void		(*ClientCommand) (edict_t *ent);
+-	void		(*ClientThink) (edict_t *ent, usercmd_t *cmd);
+-
+-	void		(*RunFrame) (void);
+-
+-	// ServerCommand will be called when an "sv <command>" command is issued on the
+-	// server console.
+-	// The game can issue gi.argc() / gi.argv() commands to get the rest
+-	// of the parameters
+-	void		(*ServerCommand) (void);
+-
+-	int			*(*GetNumObjectBounds) (void);
+-	void		*(*GetObjectBoundsPointer) (void);
+-
+-	int			(*GetNumJuniors) (void);
+-
+-	//
+-	// global variables shared between game and server
+-	//
+-
+-	// The edict array is allocated in the game dll so it
+-	// can vary in size from one game to another.
+-	// 
+-	// The size will be fixed when ge->Init() is called
+-	struct edict_s	*edicts;
+-	int			edict_size;
+-	int			num_edicts;		// current number, <= max_edicts
+-	int			max_edicts;
++	/* Kingpin game module extensions */
++	int *(*GetNumObjectBounds)(void);
++	void *(*GetObjectBoundsPointer)(void);
++	int (*GetNumJuniors)(void);
+ } game_export_t;
+ 
+ game_export_t *GetGameApi (game_import_t *import);
+--- a/gamesrc/G_LOCAL.H	2026-10-10 23:48:08.284020166 +0000
++++ b/gamesrc/G_LOCAL.H	2026-10-10 23:48:08.336021325 +0000
+@@ -1413,6 +1413,9 @@
+ 
+ 	float		voice_pitch;		// used to pitch voices up/down, 1.0 = same, 2.0 = chipmunk (double speed)
+ 
++	/* yquake2remaster ABI: reserved engine state (entity_rrstate_t) */
++	struct { vec3_t scale; unsigned int effects; unsigned int mesh; float alpha; } rrs;
++
+ 	// DO NOT MODIFY ANYTHING ABOVE THIS, THE SERVER
+ 	// EXPECTS THE FIELDS IN THAT ORDER!
+ 
+--- a/gamesrc/G_items.c	2026-10-10 23:50:27.131118978 +0000
++++ b/gamesrc/G_items.c	2026-10-10 23:50:18.402924185 +0000
+@@ -41,11 +41,11 @@
+ gitem_armor_t combatarmor_info	= { 50, 100, .60, .30, ARMOR_COMBAT};
+ gitem_armor_t bodyarmor_info	= {100, 200, .80, .60, ARMOR_BODY};
+ 
+-static int	jacket_armor_index;
+-static int	combat_armor_index;
+-static int	body_armor_index;
+-static int	power_screen_index;
+-static int	power_shield_index;
++int	jacket_armor_index;
++int	combat_armor_index;
++int	body_armor_index;
++int	power_screen_index;
++int	power_shield_index;
+ 
+ #define HEALTH_IGNORE_MAX	1
+ #define HEALTH_TIMED		2
+--- a/gamesrc/P_client.c	2026-10-11 00:02:19.603019869 +0000
++++ b/gamesrc/P_client.c	2026-10-11 00:02:19.623020315 +0000
+@@ -1445,7 +1445,7 @@
+ 	// clear entity state values
+ 	ent->s.effects = 0;
+ 	ent->s.skinnum = ent - g_edicts - 1;
+-	ent->s.modelindex = 255;		// will use the skin specified model
++	ent->s.modelindex = CUSTOM_PLAYER_MODEL;		// will use the skin specified model
+ //	ent->s.modelindex2 = 255;		// custom gun model
+ 	ent->s.frame = 0;
+ 	VectorCopy (spawn_origin, ent->s.origin);
+@@ -1578,7 +1578,7 @@
+ 		strcpy( modelname, "players/" );
+ 		strcat( modelname, modeldir );
+ 		strcat( modelname, "/head.mdx" );
+-		ent->s.model_parts[ent->s.num_parts-1].modelindex = 255;
++		ent->s.model_parts[ent->s.num_parts-1].modelindex = CUSTOM_PLAYER_MODEL;
+ 		gi.GetObjectBounds( modelname, &ent->s.model_parts[ent->s.num_parts-1] );
+ 		if (!ent->s.model_parts[ent->s.num_parts-1].object_bounds[0])
+ 			gi.GetObjectBounds( "players/male_thug/head.mdx", &ent->s.model_parts[ent->s.num_parts-1] );
+--- a/gamesrc/G_cmds.c	2026-10-11 00:02:19.607019958 +0000
++++ b/gamesrc/G_cmds.c	2026-10-11 00:02:19.623020315 +0000
+@@ -354,7 +354,7 @@
+ 	if (!showpath_ent)
+ 	{	// spawn it
+ 		showpath_ent = G_Spawn();
+-		showpath_ent->s.modelindex = 255;
++		showpath_ent->s.modelindex = CUSTOM_PLAYER_MODEL;
+ 	}
+ 
+ 	VectorCopy( ent->s.origin, showpath_ent->s.origin );

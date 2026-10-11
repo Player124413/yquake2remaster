@@ -380,6 +380,98 @@ GL3_ImageList_f(void)
 /*
  * Returns has_alpha
  */
+#ifndef GL_COMPRESSED_RGB8_ETC2
+#define GL_COMPRESSED_RGB8_ETC2 0x9274
+#endif
+#ifndef GL_COMPRESSED_RGBA8_ETC2_EAC
+#define GL_COMPRESSED_RGBA8_ETC2_EAC 0x9278
+#endif
+
+/*
+ * Compressed texture upload: ETC2 RGB8 (or EAC RGBA8 for textures
+ * with alpha). Mip chains are built and compressed on the CPU because
+ * glGenerateMipmap() is not guaranteed to work on compressed textures.
+ */
+static void
+GL3_Upload32_ETC2(const unsigned *data, int width, int height, qboolean mipmap, qboolean alpha)
+{
+	GLenum fmt = alpha ? GL_COMPRESSED_RGBA8_ETC2_EAC : GL_COMPRESSED_RGB8_ETC2;
+	unsigned char *enc;
+	int w = width, h = height;
+	unsigned *src;
+
+	if (alpha)
+	{
+		enc = malloc(ETC2_EncodedSizeRGBA(w, h));
+		ETC2_EncodeRGBA(data, w, h, enc);
+		glCompressedTexImage2D(GL_TEXTURE_2D, 0, fmt, w, h, 0,
+				(int)ETC2_EncodedSizeRGBA(w, h), enc);
+	}
+	else
+	{
+		enc = malloc(ETC2_EncodedSizeRGB(w, h));
+		ETC2_EncodeRGB(data, w, h, enc);
+		glCompressedTexImage2D(GL_TEXTURE_2D, 0, fmt, w, h, 0,
+				(int)ETC2_EncodedSizeRGB(w, h), enc);
+	}
+
+	free(enc);
+
+	if (mipmap)
+	{
+		src = malloc((size_t)(w * h) * sizeof(unsigned));
+		memcpy(src, data, (size_t)(w * h) * sizeof(unsigned));
+
+		for (int level = 1; (w > 1) || (h > 1); level++)
+		{
+			int nw = (w + 1) / 2, nh = (h + 1) / 2;
+			unsigned *dst = malloc((size_t)(nw * nh) * sizeof(unsigned));
+
+			ETC2_Downsample(src, w, h, dst);
+			free(src);
+			src = dst;
+			w = nw;
+			h = nh;
+
+			if (alpha)
+			{
+				enc = malloc(ETC2_EncodedSizeRGBA(w, h));
+				ETC2_EncodeRGBA(src, w, h, enc);
+				glCompressedTexImage2D(GL_TEXTURE_2D, level, fmt, w, h, 0,
+						(int)ETC2_EncodedSizeRGBA(w, h), enc);
+			}
+			else
+			{
+				enc = malloc(ETC2_EncodedSizeRGB(w, h));
+				ETC2_EncodeRGB(src, w, h, enc);
+				glCompressedTexImage2D(GL_TEXTURE_2D, level, fmt, w, h, 0,
+						(int)ETC2_EncodedSizeRGB(w, h), enc);
+			}
+
+			free(enc);
+		}
+
+		free(src);
+	}
+
+	if (mipmap)
+	{
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, gl_filter_min);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gl_filter_max);
+	}
+	else // if the texture has no mipmaps, we can't use gl_filter_min which might be GL_*_MIPMAP_*
+	{
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, gl_filter_max);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gl_filter_max);
+	}
+
+	if (mipmap && gl3config.anisotropic && r_anisotropic->value)
+	{
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT,
+				Q_max(r_anisotropic->value, 1.f));
+	}
+}
+
 static qboolean
 GL3_Upload32(unsigned *data, int width, int height, qboolean mipmap)
 {
@@ -405,6 +497,15 @@ GL3_Upload32(unsigned *data, int width, int height, qboolean mipmap)
 	if (r_scale8bittextures->value)
 	{
 		SmoothColorImage(data, width, height, width);
+	}
+
+	/* ETC2 compressed upload where available (GLES3 / GL 4.3+) */
+	if (r_etc2->value && gl3config.etc2 && (width >= 4) && (height >= 4))
+	{
+		GL3_Upload32_ETC2(data, width, height, mipmap,
+				(samples == gl3_alpha_format));
+
+		return (samples == gl3_alpha_format);
 	}
 
 	glTexImage2D(GL_TEXTURE_2D, 0, comp, width, height,

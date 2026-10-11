@@ -552,6 +552,76 @@ GI_FreeTags(int tag)
 	Z_FreeTags((unsigned short)tag);
 }
 
+/*
+ * Kingpin game module extensions.
+ */
+static int
+PF_Skinindex(int modelindex, const char *name)
+{
+	static struct
+	{
+		int modelindex;
+		char name[MAX_QPATH];
+	} skins[MAX_MODELS];
+	static int numskins;
+	int i, n;
+
+	if (!name || !name[0])
+	{
+		return 0;
+	}
+
+	/* return the ordinal of the skin in the per model skin
+	 * list, it is stored in model_part_t.skinnum */
+	for (i = 0, n = 0; i < numskins; i++)
+	{
+		if (skins[i].modelindex == modelindex)
+		{
+			if (!strcmp(skins[i].name, name))
+			{
+				return n;
+			}
+
+			n++;
+		}
+	}
+
+	if (numskins < MAX_MODELS)
+	{
+		skins[numskins].modelindex = modelindex;
+		Q_strlcpy(skins[numskins].name, name, sizeof(skins[numskins].name));
+		numskins++;
+	}
+
+	return n;
+}
+
+static void
+PF_ClearObjectBoundsCached(void)
+{
+	/* object bounds are not cached yet */
+}
+
+static void
+PF_StopRender(void)
+{
+	/* only meaningful for the original Kingpin client */
+}
+
+static void
+PF_GetObjectBounds(const char *mdx_filename, model_part_t *model_part)
+{
+	/* needs a server side MDX object bounds loader; the part
+	 * keeps its zeroed bounds until that lands */
+}
+
+static void
+PF_SaveCurrentGame(void)
+{
+	/* the original engine wrote an autosave here so hired guys
+	 * survive map changes, nothing to do yet */
+}
+
 void
 SV_InitGameProgs(void)
 {
@@ -634,6 +704,13 @@ SV_InitGameProgs(void)
 	import.LocalizationMessage = PF_LocalizationMessage;
 	import.LocalizationUIMessage = SV_LocalizationUIMessage;
 	import.TagRealloc = Z_TagRealloc;
+
+	/* Kingpin game module extensions */
+	import.skinindex = PF_Skinindex;
+	import.ClearObjectBoundsCached = PF_ClearObjectBoundsCached;
+	import.StopRender = PF_StopRender;
+	import.GetObjectBounds = PF_GetObjectBounds;
+	import.SaveCurrentGame = PF_SaveCurrentGame;
 
 	ge = (game_export_t *)Sys_GetGameAPI(&import);
 

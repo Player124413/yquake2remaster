@@ -480,6 +480,55 @@ CL_ParseDelta(const entity_xstate_t *from, entity_xstate_t *to, int number, int 
 		to->solid = MSG_ReadShort(&net_message);
 	}
 
+	/* Kingpin game module extensions */
+	if (cls.serverProtocol == PROTOCOL_VERSION)
+	{
+		if (bits & U_KPPARTS)
+		{
+			int i, j;
+			int n = MSG_ReadByte(&net_message);
+
+			to->renderfx2 = MSG_ReadLong(&net_message);
+
+			if (n > MAX_MODEL_PARTS)
+			{
+				n = MAX_MODEL_PARTS;
+			}
+
+			to->num_parts = n;
+
+			for (i = 0; i < n; i++)
+			{
+				model_part_t *part = &to->model_parts[i];
+
+				part->modelindex = MSG_ReadShort(&net_message);
+				part->invisible_objects = MSG_ReadByte(&net_message);
+				part->baseskin = MSG_ReadLong(&net_message);
+
+				for (j = 0; j < MAX_MODELPART_OBJECTS; j++)
+				{
+					part->skinnum[j] = MSG_ReadByte(&net_message);
+				}
+
+				for (j = 0; j < MAX_MODELPART_OBJECTS; j++)
+				{
+					part->hitpoints[j] = MSG_ReadByte(&net_message);
+				}
+
+				for (j = 0; j < MAX_MODELPART_OBJECTS; j++)
+				{
+					part->hit_scale[j] = MSG_ReadByte(&net_message);
+				}
+			}
+		}
+
+		if (bits & U_KPSCALE)
+		{
+			to->alpha = MSG_ReadFloat(&net_message);
+			to->kp_scale = MSG_ReadFloat(&net_message);
+		}
+	}
+
 	/* Revalidate model indexes limits */
 	if (bits & U_MODEL)
 	{

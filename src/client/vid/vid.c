@@ -324,7 +324,13 @@ const char* lib_ext = "so";
 static void
 VID_GetRendererLibPath(const char *renderer, char *path, size_t len)
 {
+#ifdef __ANDROID__
+	/* On Android the renderer modules are packaged by the Gradle build
+	   system and therefore carry the usual "lib" prefix. */
+	snprintf(path, len, "%slibref_%s.%s", Sys_GetBinaryDir(), renderer, lib_ext);
+#else
 	snprintf(path, len, "%sref_%s.%s", Sys_GetBinaryDir(), renderer, lib_ext);
+#endif
 }
 
 /*

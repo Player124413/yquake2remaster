@@ -4,3 +4,15 @@
 *.mk
 *.user
 *.d
+
+# Android build artifacts and fetched dependencies
+/android/SDL2/
+/android/.kingpin-game-build/
+/android/.gradle/
+/android/local.properties
+/android/app/build/
+/android/app/.cxx/
+/android/app/src/main/java/org/libsdl/
+/android/app/src/main/jniLibs/
+*.apk
+*.aab

@@ -27,6 +27,7 @@
 
 #include "header/client.h"
 #include "input/header/input.h"
+#include "input/header/touch.h"
 
 static cvar_t *cl_nodelta;
 static cvar_t *cl_centertime;
@@ -637,6 +638,9 @@ CL_RefreshCmd(void)
 	CL_BaseMove(cmd);
 	IN_Move(cmd);
 
+	// Apply touch input (virtual sticks and swipe look), if any
+	TouchInj_ApplyCmd(cmd);
+
 	// Clamp angels for prediction
 	CL_ClampPitch();
 
@@ -688,6 +692,9 @@ CL_RefreshMove(void)
 	// Add movement
 	CL_BaseMove(cmd);
 	IN_Move(cmd);
+
+	// Apply touch input (virtual sticks and swipe look), if any
+	TouchInj_ApplyCmd(cmd);
 
 	old_sys_frame_time = sys_frame_time;
 }

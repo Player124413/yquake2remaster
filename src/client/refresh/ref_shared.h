@@ -425,6 +425,13 @@ int Scrap_AllocBlock(unsigned w, unsigned h, int *x, int *y, const unsigned *pic
 	int scrap_offset);
 void Scrap_Init(void);
 
+/* ETC2 / EAC texture compression (files/etc2.c) */
+size_t ETC2_EncodedSizeRGB(int width, int height);
+size_t ETC2_EncodedSizeRGBA(int width, int height);
+void ETC2_EncodeRGB(const unsigned *data, int width, int height, unsigned char *out);
+void ETC2_EncodeRGBA(const unsigned *data, int width, int height, unsigned char *out);
+void ETC2_Downsample(const unsigned *src, int width, int height, unsigned *dst);
+
 /* Shared models func */
 typedef struct image_s* (*findimage_t)(const char *name, imagetype_t type);
 extern void *Mod_LoadModel(const char *mod_name, const void *buffer, int modfilelen,
@@ -555,6 +562,7 @@ extern cvar_t *r_customwidth;
 extern cvar_t *r_drawentities;
 extern cvar_t *r_drawworld;
 extern cvar_t *r_dynamic;
+extern cvar_t *r_etc2;
 extern cvar_t *r_farsee;
 extern cvar_t *r_fixsurfsky;
 extern cvar_t *r_flashblend;

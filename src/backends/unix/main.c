@@ -109,6 +109,21 @@ main(int argc, char **argv)
 			}
 
 		}
+
+		// Inject a custom binary/library dir. Used on Android where
+		// the renderer modules live in the APK native library dir.
+		if (strcmp(argv[i], "-libdir") == 0)
+		{
+			if (i != (argc - 1))
+			{
+				Sys_SetBinaryDir(argv[i + 1]);
+			}
+			else
+			{
+				printf("-libdir needs an argument\n");
+				return 1;
+			}
+		}
 	}
 
 #ifndef __HAIKU__

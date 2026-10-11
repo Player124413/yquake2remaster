@@ -35,10 +35,16 @@ it's `+set busywait 0` (setting the `busywait` cvar) and `-portable`
 (setting the `portable` argument).
 
 * **cfgdir**: The name (not the path) of the configuration directory.
+  An absolute path is used as is, without prepending the home
+  directory (this is what the Android frontend does).
 
 * **datadir**: Directory from which the game data is loaded. Can be used
   in startup scripts, to test binaries, etc. If not set, the directory
   containing the binaries is used.
+
+* **libdir**: Directory containing the renderer libraries
+  (`ref_*.so`). Used on Android, where they live in the APK native
+  library directory instead of next to the executable.
 
 * **portable**: Makes Quake II portable, all runtime data like the the
   config, savegames and so on is stored next to the executable and not
@@ -667,6 +673,13 @@ it's `+set busywait 0` (setting the `busywait` cvar) and `-portable`
 
 ## Graphics (OpenGL 3.2 and OpenGL ES3 only)
 
+* **r_etc2**: Compresses textures to ETC2 (or EAC for textures with
+  alpha) on load and uploads them to the GPU in compressed form. This
+  cuts texture memory usage to a quarter and often improves the frame
+  rate on mobile GPUs by reducing memory bandwidth. Requires OpenGL ES
+  3.0 or OpenGL 4.3, on older contexts the textures are uploaded
+  uncompressed regardless of this setting. Default is `1` (enabled).
+
 * **gl3_debugcontext**: Enables the OpenGL 3.2 renderers debug context,
   e.g. prints warnings and errors emitted by the GPU driver.  Not
   supported on macOS. This is a pure debug cvar and slows down
@@ -869,6 +882,18 @@ it's `+set busywait 0` (setting the `busywait` cvar) and `-portable`
   default this cvar is `0`. Possible values:
   - `0`: Rumble feedback,
   - `1`: Haptic feedback.
+
+
+## Touch input
+
+These control the injection layer used by the mobile frontend (see
+doc/050_android.md). The on screen controls themselves are configured
+in the Android launcher.
+
+* **touch_inject**: Master switch for the touch input injection layer.
+  When set to `0` all events coming from the on screen controls are
+  ignored and the overlay is disabled by the frontend. Set to `1` by
+  default.
 
 
 ## cvar operations

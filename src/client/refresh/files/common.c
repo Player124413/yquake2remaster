@@ -36,6 +36,7 @@ cvar_t *r_customwidth;
 cvar_t *r_drawentities;
 cvar_t *r_drawworld;
 cvar_t *r_dynamic;
+cvar_t *r_etc2;
 cvar_t *r_farsee;
 cvar_t *r_fixsurfsky;
 cvar_t *r_flashblend;
@@ -271,6 +272,7 @@ R_InitCvar(void)
 	r_retexturing = ri.Cvar_Get("r_retexturing", "1", CVAR_ARCHIVE);
 	r_scale8bittextures = ri.Cvar_Get("r_scale8bittextures", "0", CVAR_ARCHIVE);
 	r_scale32bittextures = ri.Cvar_Get("r_scale32bittextures", "0", CVAR_ARCHIVE);
+	r_etc2 = ri.Cvar_Get("r_etc2", "1", CVAR_ARCHIVE);
 	r_skeletalanimation = ri.Cvar_Get("r_skeletalanimation", "1", CVAR_ARCHIVE);
 	r_anisotropic = ri.Cvar_Get("r_anisotropic", "0", CVAR_ARCHIVE);
 	/* don't bilerp characters and crosshairs */

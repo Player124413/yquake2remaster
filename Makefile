@@ -1274,6 +1274,7 @@ CLIENT_OBJS_ := \
 	src/client/curl/download.o \
 	src/client/curl/qcurl.o \
 	src/client/input/gyro.o \
+	src/client/input/touch_inject.o \
 	src/client/menu/menu.o \
 	src/client/menu/qmenu.o \
 	src/client/menu/videomenu.o \
@@ -1430,6 +1431,7 @@ REFGL3_OBJS_ := \
 	src/client/refresh/gl3/gl3_warp.o \
 	src/client/refresh/gl3/gl3_shaders.o \
 	src/client/refresh/files/common.o \
+	src/client/refresh/files/etc2.o \
 	src/client/refresh/files/glshaders.o \
 	src/client/refresh/files/mesh.o \
 	src/client/refresh/files/light.o \

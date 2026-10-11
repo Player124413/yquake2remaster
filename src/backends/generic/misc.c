@@ -173,9 +173,36 @@ Sys_GetCwd(char *buf, size_t size)
 }
 
 
+/* Optional override for platforms where the executable path is
+   meaningless (e.g. Android, where /proc/self/exe points to the
+   zygote). When set, Sys_GetBinaryDir() returns this directory. */
+static char forcedBinaryDir[PATH_MAX] = {0};
+
+void
+Sys_SetBinaryDir(const char *dir)
+{
+	if (dir == NULL || dir[0] == '\0')
+	{
+		forcedBinaryDir[0] = '\0';
+		return;
+	}
+
+	Q_strlcpy(forcedBinaryDir, dir, sizeof(forcedBinaryDir));
+
+	/* make sure there is exactly one trailing slash */
+	if (forcedBinaryDir[strlen(forcedBinaryDir) - 1] != '/')
+	{
+		Q_strlcat(forcedBinaryDir, "/", sizeof(forcedBinaryDir));
+	}
+}
+
 const char *Sys_GetBinaryDir(void)
 {
 	static char exeDir[PATH_MAX] = {0};
+
+	if (forcedBinaryDir[0] != '\0') {
+		return forcedBinaryDir;
+	}
 
 	if(exeDir[0] != '\0') {
 		return exeDir;

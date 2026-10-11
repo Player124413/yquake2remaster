@@ -433,6 +433,14 @@ int GL3_InitContext(void* win)
 	gl3config.debug_output = GLAD_GL_ARB_debug_output != 0;
 #endif
 	gl3config.anisotropic = GLAD_GL_EXT_texture_filter_anisotropic != 0;
+#ifdef YQ2_GL3_GLES3
+	/* ETC2 is core in OpenGL ES 3.0 */
+	gl3config.etc2 = true;
+#else
+	/* ETC2 is core in OpenGL 4.3 */
+	gl3config.etc2 = (GLVersion.major > 4) ||
+		((GLVersion.major == 4) && (GLVersion.minor >= 3));
+#endif
 
 	gl3config.major_version = GLVersion.major;
 	gl3config.minor_version = GLVersion.minor;

@@ -70,6 +70,15 @@ void setCustomCfgDir(const char* dir)
 {
 	Q_strlcpy(cfgdir, dir, MAX_OSPATH);
 	user_cfgdir = true;
+
+#ifdef __ANDROID__
+	/* Android apps usually have no HOME, make sure code that
+	   builds writable paths from it keeps working. */
+	if (getenv("HOME") == NULL)
+	{
+		setenv("HOME", dir[0] ? dir : "/data/local/tmp", 1);
+	}
+#endif
 }
 
 void
@@ -450,7 +459,7 @@ Sys_GetGameAPI(void *parms)
 
 		if (!path)
 		{
-			return NULL;     /* couldn't find one anywhere */
+			break;
 		}
 
 		snprintf(name, MAX_OSPATH, "%s/%s", path, gamename);
@@ -496,6 +505,40 @@ Sys_GetGameAPI(void *parms)
 
 			return NULL;
 		}
+	}
+
+#ifdef __ANDROID__
+	/* On Android a game library can also be shipped inside the APK.
+	   It ends up in the native library dir as libgame.so and is used
+	   when the game data directory does not provide its own game.so. */
+	if (!game_library)
+	{
+		FILE *fp;
+
+		snprintf(name, MAX_OSPATH, "%slibgame.so", Sys_GetBinaryDir());
+		fp = fopen(name, "rb");
+
+		if (fp != NULL)
+		{
+			fclose(fp);
+
+#ifdef USE_SANITIZER
+			game_library = dlopen(name, RTLD_NOW | RTLD_NODELETE);
+#else
+			game_library = dlopen(name, RTLD_NOW);
+#endif
+
+			if (game_library)
+			{
+				Com_MDPrintf("Loading library: %s\n", name);
+			}
+		}
+	}
+#endif
+
+	if (!game_library)
+	{
+		return NULL;     /* couldn't find one anywhere */
 	}
 
 	GetGameAPI = (fnAPI)dlsym(game_library, "GetGameAPI");
@@ -562,6 +605,15 @@ Sys_GetHomeDir()
 
 	if (!dir[0])
 	{
+		if (user_cfgdir && (cfgdir[0] == '/'))
+		{
+			/* absolute config dir, use it as is (used on Android,
+			   where the app passes its private files directory) */
+			Com_sprintf(dir, MAX_OSPATH, "%s/", cfgdir);
+			Sys_Mkdir(dir);
+			return dir;
+		}
+
 		const char* home = getenv("HOME");
 
 		if (!home) {

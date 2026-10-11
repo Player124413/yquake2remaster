@@ -39,6 +39,15 @@ not include submodules in these archives. To build the project successfully, you
  * Follow the step-by-step instructions for a [lightweight setup](doc/020_installation.md#minimal-test-run-on-debian)
  * Use CMake without submodules.
 
+### Android
+
+A complete Android port with a launcher and configurable on screen
+touch controls lives in [android/](android/README.md). It builds the
+engine with OpenGL ES 3 / GLES1 / software renderers, render
+resolution scaling for stable 60 fps, and an overlay editor for button
+size, position and visibility. See [doc/050_android.md](doc/050_android.md)
+for build instructions and the performance guide.
+
 ### Asset Support
 
 Yamagi Quake II Remaster supports a wide variety of model, texture, sprite, map, sound, and package formats from classic id Tech games and related titles (such as Quake, Quake 2, Half-Life, Hexen 2, Daikatana, SiN, Anachronox, Heretic 2, and Quake 3).
