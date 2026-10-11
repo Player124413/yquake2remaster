@@ -85,15 +85,19 @@ jobs:
           UNSIGNED="android/app/build/outputs/apk/release/app-release-unsigned.apk"
           [ -f "$UNSIGNED" ] || { echo "unsigned APK not found"; exit 1; }
 
-          "$BT/zipalign" -f -p 4 "$UNSIGNED" "$RUNNER_TEMP/aligned.apk"
+          "$BT/zipalign" -f -p 4 "$UNSIGNED" "$RUNNER_TEMP/aligned.apk" \
+            || { echo "::error title=Sign APK::zipalign failed"; exit 1; }
           "$BT/apksigner" sign \
             --ks android/debug.keystore \
+            --ks-type pkcs12 \
             --ks-pass pass:android \
             --key-pass pass:android \
             --ks-key-alias androiddebugkey \
             --out android/kingpin-android.apk \
-            "$RUNNER_TEMP/aligned.apk"
-          "$BT/apksigner" verify android/kingpin-android.apk
+            "$RUNNER_TEMP/aligned.apk" \
+            || { echo "::error title=Sign APK::apksigner sign failed"; exit 1; }
+          "$BT/apksigner" verify android/kingpin-android.apk \
+            || { echo "::error title=Sign APK::apksigner verify failed"; exit 1; }
           echo "==> Signed APK ready: android/kingpin-android.apk"
 
       - name: Upload APK artifact
