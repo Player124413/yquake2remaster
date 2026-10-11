@@ -46,9 +46,9 @@ android {
     externalNativeBuild {
         cmake {
             // The engine build is driven by the repository root CMakeLists.txt,
-            // which supports the ANDROID platform directly.
+            // which supports the ANDROID platform directly. CMake comes from
+            // PATH (needs >= 3.31, installed by the CI workflow / host setup).
             path '../../CMakeLists.txt'
-            version '3.22.1'
         }
     }
 

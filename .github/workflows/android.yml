@@ -62,9 +62,13 @@ jobs:
           "$SDKMANAGER" --install \
             "platforms;android-34" \
             "build-tools;$ANDROID_BUILD_TOOLS" \
-            "ndk;$ANDROID_NDK_VERSION" \
-            "cmake;3.22.1"
+            "ndk;$ANDROID_NDK_VERSION"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$ANDROID_NDK_VERSION" >> "$GITHUB_ENV"
+
+      - name: Install CMake 3.31+ (root CMakeLists requires 3.31)
+        run: |
+          python3 -m pip install --user --break-system-packages --upgrade "cmake>=3.31"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Fetch SDL2
         run: android/fetch_deps.sh
