@@ -47,7 +47,7 @@ android {
         cmake {
             // The engine build is driven by the repository root CMakeLists.txt,
             // which supports the ANDROID platform directly.
-            path '../../../../CMakeLists.txt'
+            path '../../CMakeLists.txt'
             version '3.22.1'
         }
     }
