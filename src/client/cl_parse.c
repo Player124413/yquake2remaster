@@ -1948,6 +1948,9 @@ CL_ParseServerMessage(void)
 {
 	char *s;
 	int i;
+	int command_history[8];
+	int command_offsets[8];
+	int command_history_count = 0;
 
 	/* if recording demos, copy the message out */
 	if (cl_shownet->value == 1)
@@ -1993,15 +1996,79 @@ CL_ParseServerMessage(void)
 
 		cmd = P_CmdConvert(cmd, cls.serverProtocol);
 
+		if (command_history_count < (int)ARRLEN(command_history))
+		{
+			command_history[command_history_count] = cmd;
+			command_offsets[command_history_count] = net_message.readcount - 1;
+			command_history_count++;
+		}
+		else
+		{
+			memmove(command_history, command_history + 1,
+					(sizeof(command_history) - sizeof(command_history[0])));
+			memmove(command_offsets, command_offsets + 1,
+					(sizeof(command_offsets) - sizeof(command_offsets[0])));
+			command_history[ARRLEN(command_history) - 1] = cmd;
+			command_offsets[ARRLEN(command_offsets) - 1] =
+					net_message.readcount - 1;
+		}
+
 		CL_ShowNetCmd(cmd);
 
 		/* other commands */
 		switch (cmd)
 		{
 			default:
+			{
+				int j;
+				int bad_offset;
+				int dump_start;
+				int dump_end;
+
+				bad_offset = net_message.readcount - 1;
+				Com_Printf("%s: protocol %d, opcode 0x%02x at byte %d/%d\n",
+						__func__, cls.serverProtocol, cmd,
+						bad_offset, net_message.cursize);
+
+				if (command_history_count > 1)
+				{
+					Com_Printf("Recent server commands:");
+					for (j = 0; j < command_history_count - 1; j++)
+					{
+						int previous_cmd;
+						const char *name;
+
+						previous_cmd = command_history[j];
+						name = ((previous_cmd >= 0) &&
+								(previous_cmd < (int)ARRLEN(svc_strings))) ?
+							svc_strings[previous_cmd] : "unknown";
+						Com_Printf(" %s@%d", name, command_offsets[j]);
+					}
+					Com_Printf("\n");
+				}
+
+				dump_start = bad_offset - 8;
+				if (dump_start < 0)
+				{
+					dump_start = 0;
+				}
+				dump_end = bad_offset + 9;
+				if (dump_end > net_message.cursize)
+				{
+					dump_end = net_message.cursize;
+				}
+
+				Com_Printf("Packet bytes [%d,%d):", dump_start, dump_end);
+				for (j = dump_start; j < dump_end; j++)
+				{
+					Com_Printf(" %02x", (unsigned int)net_message.data[j]);
+				}
+				Com_Printf("\n");
+
 				Com_Error(ERR_DROP, "%s: Illegible server message 0x%02x\n",
-					__func__, cmd);
+						__func__, cmd);
 				return;
+			}
 
 			case svc_nop:
 				break;
