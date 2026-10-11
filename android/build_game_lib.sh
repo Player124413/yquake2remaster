@@ -156,20 +156,17 @@ build_abi() {
         echo "cc $f"
         "$CC" $CFLAGS -c "$f" -o "$OBJDIR/${f%.c}.o"
     done ) >> "$COMPLOG" 2>&1 || {
-        echo "!! Compilation failed for $ABI:"
         tail -n 40 "$COMPLOG"
-        return 1
+        fail "Compilation failed for $ABI (see the tail above)"
     }
     if grep -q 'error:' "$COMPLOG"; then
-        echo "!! Compiler reported errors for $ABI:"
         grep 'error:' "$COMPLOG" | head -n 20
-        return 1
+        fail "Compiler reported errors for $ABI"
     fi
     NC="$(ls "$GAMESRC"/*.c | wc -l)"
     NO="$(ls "$OBJDIR"/*.o | wc -l)"
     if [ "$NO" -ne "$NC" ]; then
-        echo "!! $ABI: expected $NC objects ($NC .c files), found $NO"
-        return 1
+        fail "$ABI: expected $NC objects ($NC .c files), found $NO"
     fi
 
     "$CC" $CFLAGS -c "$GAMESRC/kp_shim.c" -o "$OBJDIR/kp_shim.o"
@@ -183,9 +180,8 @@ build_abi() {
         # shellcheck disable=SC2016
         UNDEF="$(nm -u "$OBJDIR"/*.o 2>/dev/null | awk '{print $NF}' | grep -E '^(NAV_|nav_|G_Nav|G_Nav_)' | sort -u || true)"
         if [ -z "$UNDEF" ]; then
-            echo "!! Link failed for $ABI with no navigation symbols to stub:"
             cat "$BUILD/link-$ABI.log"
-            return 1
+            fail "Link failed for $ABI with no navigation symbols to stub"
         fi
         {
             echo "/* Auto generated CNS stubs ($ABI) */"
@@ -196,15 +192,13 @@ build_abi() {
         "$CC" $CFLAGS -c "$GAMESRC/kp_shim.c" -o "$OBJDIR/kp_shim.o"
         "$CC" -shared -Wl,--no-undefined -o "$BUILD/libgame-$ABI.so" \
             "$OBJDIR"/*.o -lm || {
-            echo "!! Link failed for $ABI after stubbing:"
             cat "$BUILD/link-$ABI.log"
-            return 1
+            fail "Link failed for $ABI after stubbing"
         }
     fi
 
     if ! nm -D "$BUILD/libgame-$ABI.so" | grep -q ' T GetGameAPI$'; then
-        echo "!! $ABI: GetGameAPI is not exported from libgame.so"
-        return 1
+        fail "$ABI: GetGameAPI is not exported from libgame.so"
     fi
 
     mkdir -p "$OUT_JNI/$ABI"
