@@ -28,7 +28,9 @@ automatically):
 The APK is signed with the Android debug key (committed as
 `debug.keystore`): it installs on any device and keeps the same
 signature across builds, so later builds update on top without
-reinstalling. Release builds keep full native optimization.
+reinstalling. Release builds keep full native optimization. CI
+installs CMake 3.31+ via pip (the engine's `cmake_minimum_required`
+is 3.31); local builds need the same.
 
 The game data (copy `main/*.pak` to the folder shown by the launcher)
 is only needed on the phone at runtime. To prepare it locally:
