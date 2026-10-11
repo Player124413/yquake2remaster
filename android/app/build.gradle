@@ -31,7 +31,7 @@ android {
                           "-DOPENAL_SUPPORT=OFF",
                           "-DXDG_SUPPORT=OFF",
                           "-DSDL3_SUPPORT=OFF"
-                targets "SDL2", "main", "game", "ref_gles3", "ref_gles1", "ref_soft"
+                targets "SDL2", "main", "ref_gles3", "ref_gles1", "ref_soft"
             }
         }
 
