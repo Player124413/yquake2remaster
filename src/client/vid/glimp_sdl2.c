@@ -658,12 +658,40 @@ GLimp_InitGraphics(int fullscreen, int *pwidth, int *pheight)
 		return false;
 	}
 
+	/* Android reports the physical display mode separately from the
+	   SurfaceView drawable. Keep the game viewport, renderer and HUD in
+	   the actual drawable coordinate space; otherwise 3D can stop before
+	   the bottom of the screen while 2D drawing still fills it. The
+	   default high-DPI flag is disabled on Android, so query the drawable
+	   directly instead of inferring it from the display mode. */
+#if defined(__ANDROID__)
+	{
+		int drawableWidth = 0;
+		int drawableHeight = 0;
+
+		re.GetDrawableSize(&drawableWidth, &drawableHeight);
+		if ((drawableWidth > 0) && (drawableHeight > 0))
+		{
+			if ((drawableWidth != *pwidth) || (drawableHeight != *pheight))
+			{
+				Com_Printf("Android drawable overrides display mode: %ix%i -> %ix%i\n",
+					*pwidth, *pheight, drawableWidth, drawableHeight);
+			}
+
+			*pwidth = drawableWidth;
+			*pheight = drawableHeight;
+		}
+
+		viddef.width = *pwidth;
+		viddef.height = *pheight;
+	}
+#else
 	/* We need the actual drawable size for things like the
 	   console, the menus, etc. This might be different to
 	   the resolution due to high dpi awareness.
 
 	   The fullscreen window is special. We want it to fill
-	   the screen when native resolution is requestes, all
+	   the screen when native resolution is requested, all
 	   other cases should look broken. */
 	if (flags & SDL_WINDOW_ALLOW_HIGHDPI)
 	{
@@ -700,6 +728,7 @@ GLimp_InitGraphics(int fullscreen, int *pwidth, int *pheight)
 		viddef.width = *pwidth;
 		viddef.height = *pheight;
 	}
+#endif
 
 	Com_Printf("Drawable size: %ix%i\n", viddef.width, viddef.height);
 

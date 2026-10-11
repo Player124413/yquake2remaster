@@ -20,8 +20,10 @@ Kingpin: Life of Crime content in particular.
   * optional vibration on button press,
   * **master switch to disable all touch controls** (for gamepad play).
 * **Performance**
-  * fullscreen output uses the phone's native display mode; SDL cannot
-    switch Android into arbitrary scaled display modes,
+  * fullscreen output follows the actual SDL/Android drawable size (the
+    SurfaceView), not just the physical display-mode dimensions, keeping
+    the 3D viewport and HUD aligned,
+  * SDL cannot switch Android into arbitrary scaled display modes,
   * three renderers: OpenGL ES 3 (quality), OpenGL ES 1 (compatible),
     software (fallback),
   * quality / balanced / fast presets in the launcher,

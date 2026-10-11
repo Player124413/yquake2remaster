@@ -1950,7 +1950,16 @@ RE_InitContext(void *win)
 
 	/* We can't rely on vid, because the context is created
 	   before we had a chance to overwrite it with the drawable
-	   size. */
+	   size. Android's SurfaceView size can differ from the physical
+	   display mode even when SDL high-DPI awareness is disabled. */
+#if defined(__ANDROID__)
+	RE_GetDrawableSize(&vid_buffer_width, &vid_buffer_height);
+	if ((vid_buffer_width <= 0) || (vid_buffer_height <= 0))
+	{
+		vid_buffer_height = vid.height;
+		vid_buffer_width = vid.width;
+	}
+#else
 	if (IsHighDPIaware)
 	{
 		RE_GetDrawableSize(&vid_buffer_width, &vid_buffer_height);
@@ -1960,6 +1969,7 @@ RE_InitContext(void *win)
 		vid_buffer_height = vid.height;
 		vid_buffer_width = vid.width;
 	}
+#endif
 
 	/* just buffer for 8bit -> 32bit covert and render */
 	texture = SDL_CreateTexture(renderer,

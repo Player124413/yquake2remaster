@@ -403,6 +403,9 @@ SCR_CheckDrawCenterString(void)
 static void
 SCR_CalcVrect(void)
 {
+	static int last_width = -1;
+	static int last_height = -1;
+	static int last_size = -1;
 	int size;
 
 	/* bound viewsize */
@@ -423,6 +426,17 @@ SCR_CalcVrect(void)
 
 	scr_vrect.x = (viddef.width - scr_vrect.width) / 2;
 	scr_vrect.y = (viddef.height - scr_vrect.height) / 2;
+
+	if ((last_width != viddef.width) || (last_height != viddef.height) ||
+		(last_size != size))
+	{
+		Com_Printf("View viewport: drawable=%ix%i viewsize=%d%% rect=%i,%i %ix%i\n",
+			viddef.width, viddef.height, size, scr_vrect.x, scr_vrect.y,
+			scr_vrect.width, scr_vrect.height);
+		last_width = viddef.width;
+		last_height = viddef.height;
+		last_size = size;
+	}
 }
 
 /*
