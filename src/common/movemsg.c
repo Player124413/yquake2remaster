@@ -203,7 +203,7 @@ MSG_ConfigString_Size(const char *s)
 static qboolean DeltaPartsChanged(const entity_xstate_t *from,
 		const entity_xstate_t *to);
 
-int
+static int
 DeltaEntityBits(const entity_xstate_t *from,
 		const entity_xstate_t *to,
 		qboolean newentity,
@@ -268,10 +268,14 @@ DeltaEntityBits(const entity_xstate_t *from,
 	if ((protocol == PROTOCOL_VERSION) &&
 		((to->scale[0] != from->scale[0]) ||
 		 (to->scale[1] != from->scale[1]) ||
-		 (to->scale[2] != from->scale[2]) ||
-		 (to->rr_alpha != from->rr_alpha)))
+		 (to->scale[2] != from->scale[2])))
 	{
 		bits |= (U_SKIN8 | U_SKIN16);
+	}
+
+	if ((protocol == PROTOCOL_VERSION) && (to->rr_alpha != from->rr_alpha))
+	{
+		bits |= U_ALPHA;
 	}
 
 	if (to->frame != from->frame)
@@ -365,14 +369,17 @@ DeltaEntityBits(const entity_xstate_t *from,
 	}
 
 	/* Kingpin game module extensions */
-	if (DeltaPartsChanged(from, to))
+	if (protocol == PROTOCOL_VERSION)
 	{
-		bits |= U_KPPARTS;
-	}
+		if (DeltaPartsChanged(from, to))
+		{
+			bits |= U_KPPARTS;
+		}
 
-	if ((to->alpha != from->alpha) || (to->kp_scale != from->kp_scale))
-	{
-		bits |= U_KPSCALE;
+		if ((to->alpha != from->alpha) || (to->kp_scale != from->kp_scale))
+		{
+			bits |= U_KPSCALE;
+		}
 	}
 
 	if (newentity || (to->renderfx & RF_BEAM))
@@ -1189,8 +1196,6 @@ MSG_WriteDeltaEntity(const entity_xstate_t *from,
 			{
 				MSG_WriteFloat(msg, to->scale[i]);
 			}
-
-			MSG_WriteFloat(msg, to->rr_alpha);
 		}
 	}
 
@@ -1328,6 +1333,18 @@ MSG_WriteDeltaEntity(const entity_xstate_t *from,
 	if (bits & U_EVENT)
 	{
 		MSG_WriteByte(msg, to->event);
+	}
+
+	if (bits & U_ALPHA)
+	{
+		if (protocol == PROTOCOL_VERSION)
+		{
+			MSG_WriteFloat(msg, to->rr_alpha);
+		}
+		else
+		{
+			MSG_WriteByte(msg, to->rr_alpha * 255.0f);
+		}
 	}
 
 	if ((bits & U_SOLID) && (protocol != PROTOCOL_RR22_VERSION))
