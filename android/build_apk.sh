@@ -54,9 +54,15 @@ esac
 
 echo "==> Building $TASK ..."
 GRADLE_LOG="$PWD/gradle-build.log"
-if ! "$GRADLE" "$TASK" --stacktrace 2>&1 | tee "$GRADLE_LOG"; then
+set +e
+"$GRADLE" "$TASK" --stacktrace > "$GRADLE_LOG" 2>&1
+GRADLE_STATUS=$?
+set -e
+cat "$GRADLE_LOG"
+
+if [ "$GRADLE_STATUS" -ne 0 ]; then
     echo ""
-    echo "==> Gradle failed, last lines of the log:"
+    echo "==> Gradle failed (exit $GRADLE_STATUS), last lines of the log:"
     tail -n 60 "$GRADLE_LOG"
     # In GitHub Actions surface the tail as annotations so it is
     # visible without downloading the full log bundle.

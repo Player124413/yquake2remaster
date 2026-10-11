@@ -83,9 +83,9 @@ jobs:
           set -e
           BT="$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS"
           echo "==> Looking for the APK in android/app/build/outputs:"
-          find android/app/build/outputs -type f -name '*.apk' -print
+          find android/app/build/outputs -type f -name '*.apk' -print 2>/dev/null || true
 
-          UNSIGNED="$(find android/app/build/outputs -type f -name '*.apk' | head -n 1)"
+          UNSIGNED="$(find android/app/build/outputs -type f -name '*.apk' 2>/dev/null | head -n 1 || true)"
           if [ -z "$UNSIGNED" ]; then
             echo "::error title=Sign APK::no APK found in android/app/build/outputs"
             exit 1
