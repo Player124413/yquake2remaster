@@ -63,14 +63,14 @@ if [ "$GRADLE_STATUS" -ne 0 ]; then
     echo ""
     echo "==> Gradle failed (exit $GRADLE_STATUS), last lines of the log:"
     tail -n 60 "$GRADLE_LOG"
-    # In GitHub Actions surface the tail as annotations so it is
-    # visible without downloading the full log bundle.
+    # In GitHub Actions surface the important lines as annotations so
+    # they are visible without downloading the full log bundle.
     if [ "$GITHUB_ACTIONS" = "true" ]; then
-        n=0
-        while [ "$n" -lt 200 ]; do
-            echo "::error title=Gradle build failed::$(tail -n 200 "$GRADLE_LOG" | sed -n "$((n + 1)),$((n + 20))p" | tr '\n' '|' | cut -c1-4000)"
-            n=$((n + 20))
+        # Signal lines first (CMake/compiler errors, root causes).
+        grep -n -E 'CMake Error|error:|Error:|What went wrong|Caused by|fatal|undefined' "$GRADLE_LOG" | head -n 8 | while IFS= read -r line; do
+            echo "::error title=Gradle failure detail::$(printf '%s' "$line" | tr '\n' ' ' | cut -c1-400)"
         done
+        echo "::error title=Gradle log tail (see android/gradle-build.log artifact)::$(tail -n 40 "$GRADLE_LOG" | tr '\n' '|' | cut -c1-3000)"
     fi
     exit 1
 fi

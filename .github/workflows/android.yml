@@ -78,6 +78,14 @@ jobs:
       - name: Build APK
         run: android/build_apk.sh release
 
+      - name: Upload Gradle log (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-build-log
+          path: android/gradle-build.log
+          if-no-files-found: ignore
+
       - name: Sign APK (Android debug key)
         run: |
           set -e
