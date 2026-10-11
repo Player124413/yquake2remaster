@@ -131,24 +131,53 @@ build_abi() {
     mkdir -p "$OBJDIR"
 
     CFLAGS="-O2 -fPIC -fcommon -fvisibility=hidden -w \
-        -D_stricmp=strcasecmp -D_strnicmp=strncasecmp -Dstrcmpi=strcasecmp"
+        -D_stricmp=strcasecmp -D_strnicmp=strncasecmp -Dstrcmpi=strcasecmp \
+        -Dstricmp=strcasecmp -Dstrnicmp=strncasecmp"
 
     echo "-- compiling for $ABI ..."
+    COMPLOG="$BUILD/compile-$ABI.log"
+    : > "$COMPLOG"
+    # Every file must compile - a failed translation unit used to be
+    # silently skipped (|| true) and the shared library still linked,
+    # hiding broken builds behind a green step.
     ( cd "$GAMESRC" && for f in *.c; do
         case "$f" in
             kp_shim.c) continue ;;
         esac
-        "$CC" $CFLAGS -c "$f" -o "$OBJDIR/${f%.c}.o" || true
-    done )
+        echo "cc $f"
+        "$CC" $CFLAGS -c "$f" -o "$OBJDIR/${f%.c}.o"
+    done ) >> "$COMPLOG" 2>&1 || {
+        echo "!! Compilation failed for $ABI:"
+        tail -n 40 "$COMPLOG"
+        return 1
+    }
+    if grep -q 'error:' "$COMPLOG"; then
+        echo "!! Compiler reported errors for $ABI:"
+        grep 'error:' "$COMPLOG" | head -n 20
+        return 1
+    fi
+    NC="$(ls "$GAMESRC"/*.c | wc -l)"
+    NO="$(ls "$OBJDIR"/*.o | wc -l)"
+    if [ "$NO" -ne "$NC" ]; then
+        echo "!! $ABI: expected $NC objects ($NC .c files), found $NO"
+        return 1
+    fi
 
     "$CC" $CFLAGS -c "$GAMESRC/kp_shim.c" -o "$OBJDIR/kp_shim.o"
 
-    # First link attempt: reveals undefined CNS symbols.
+    # First link attempt: fails on the undefined closed-source CNS
+    # navigation symbols. --no-undefined also catches missing objects.
     echo "-- linking for $ABI ..."
-    if ! "$CC" -shared -o "$BUILD/libgame-$ABI.so" "$OBJDIR"/*.o 2> "$BUILD/link-$ABI.log"; then
+    if ! "$CC" -shared -Wl,--no-undefined -o "$BUILD/libgame-$ABI.so" \
+            "$OBJDIR"/*.o -lm 2> "$BUILD/link-$ABI.log"; then
         echo "-- generating stubs for undefined navigation symbols..."
         # shellcheck disable=SC2016
         UNDEF="$(nm -u "$OBJDIR"/*.o 2>/dev/null | awk '{print $NF}' | grep -E '^(NAV_|nav_|G_Nav|G_Nav_)' | sort -u || true)"
+        if [ -z "$UNDEF" ]; then
+            echo "!! Link failed for $ABI with no navigation symbols to stub:"
+            cat "$BUILD/link-$ABI.log"
+            return 1
+        fi
         {
             echo "/* Auto generated CNS stubs ($ABI) */"
             for sym in $UNDEF; do
@@ -156,15 +185,22 @@ build_abi() {
             done
         } >> "$GAMESRC/kp_shim.c"
         "$CC" $CFLAGS -c "$GAMESRC/kp_shim.c" -o "$OBJDIR/kp_shim.o"
-        "$CC" -shared -o "$BUILD/libgame-$ABI.so" "$OBJDIR"/*.o || {
-            echo "!! Link failed for $ABI, see $BUILD/link-$ABI.log"
+        "$CC" -shared -Wl,--no-undefined -o "$BUILD/libgame-$ABI.so" \
+            "$OBJDIR"/*.o -lm || {
+            echo "!! Link failed for $ABI after stubbing:"
+            cat "$BUILD/link-$ABI.log"
             return 1
         }
     fi
 
+    if ! nm -D "$BUILD/libgame-$ABI.so" | grep -q ' T GetGameAPI$'; then
+        echo "!! $ABI: GetGameAPI is not exported from libgame.so"
+        return 1
+    fi
+
     mkdir -p "$OUT_JNI/$ABI"
     cp "$BUILD/libgame-$ABI.so" "$OUT_JNI/$ABI/libgame.so"
-    echo "-- installed $OUT_JNI/$ABI/libgame.so"
+    echo "-- installed $OUT_JNI/$ABI/libgame.so ($NO + shim objects)"
 }
 
 build_abi arm64-v8a aarch64 aarch64-linux-android

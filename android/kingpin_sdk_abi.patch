@@ -1,103 +1,6 @@
---- a/gamesrc/Q_SHARED.H	2026-10-10 23:48:08.284020166 +0000
-+++ b/gamesrc/Q_SHARED.H	2026-10-11 00:03:07.776095034 +0000
-@@ -1180,43 +1180,49 @@
- // the server to all connected clients.
- // Each config string can be at most MAX_QPATH characters.
- //
--#define	CS_NAME				0
--#define	CS_CDTRACK			1
--
--#define CS_DENSITY			2
--#define CS_FOGVAL			3
--
--#define CS_DENSITY2			4
--#define CS_FOGVAL2			5
--
--#define	CS_SKY				6
--#define	CS_STATUSBAR		7		// display program string
--
--// RAFAEL
--//#define CS_SKYBOX_ORIGIN		10
--/*
--#define	CS_SKY				2
--#define	CS_SKYAXIS			3		// %f %f %f format
--#define	CS_SKYROTATE		4
--#define	CS_STATUSBAR		5		// display program string
--*/
--
--#define	CS_SERVER_VERSION	29		// so new clients can decide which version of download code to use
--
--#define	CS_MAXCLIENTS		30
--#define	CS_MAPCHECKSUM		31		// for catching cheater maps
--
--#define	CS_MODELS			32
--#define	CS_SOUNDS			(CS_MODELS+MAX_MODELS)
--#define	CS_IMAGES			(CS_SOUNDS+MAX_SOUNDS)
--#define CS_MODELSKINS		(CS_IMAGES+MAX_IMAGES)
--#define	CS_LIGHTS			(CS_MODELSKINS+MAX_MODELS)
--#define	CS_ITEMS			(CS_LIGHTS+MAX_LIGHTSTYLES)
--#define	CS_PLAYERSKINS		(CS_ITEMS+MAX_ITEMS)
--#define	CS_LIGHTFLARES		(CS_PLAYERSKINS+MAX_CLIENTS)
--#define	CS_JUNIORS			(CS_LIGHTFLARES+MAX_LIGHTFLARES)
--#define CS_GENERAL			(CS_JUNIORS+MAX_JUNIOR_STRINGS)
--#define	MAX_CONFIGSTRINGS	(CS_GENERAL+MAX_GENERAL)
-+/* yquake2remaster configstring layout (the game module ABI).
-+ * The limits below must match the engine. */
-+#undef MAX_MODELS
-+#define MAX_MODELS 512
-+#undef MAX_SOUNDS
-+#define MAX_SOUNDS 512
-+#undef MAX_ITEMS
-+#define MAX_ITEMS 512
-+#define MAX_SHADOW_LIGHTS 256
-+#define MAX_LIGHTFLARES 128
-+#define CUSTOM_PLAYER_MODEL (MAX_MODELS - 1)
-+#define MAX_JUNIORS 32
-+
-+#define CS_NAME 0
-+#define CS_CDTRACK 1
-+#define CS_SKY 2
-+#define CS_SKYAXIS 3
-+#define CS_SKYROTATE 4
-+#define CS_STATUSBAR 5
-+#define CS_STATUSBAR_END 29
-+#define CS_STATUSBAR_SPACE(i) ((CS_STATUSBAR_END - (i)) * MAX_QPATH)
-+#define CS_AIRACCEL 29
-+#define CS_MAXCLIENTS 30
-+#define CS_MAPCHECKSUM 31
-+#define CS_STORY 32
-+#define CS_SKIP 33
-+#define CS_MODELS 34
-+#define CS_SOUNDS (CS_MODELS + MAX_MODELS)
-+#define CS_IMAGES (CS_SOUNDS + MAX_SOUNDS)
-+#define CS_LIGHTS (CS_IMAGES + MAX_IMAGES)
-+#define CS_SHADOWLIGHTS (CS_LIGHTS + MAX_LIGHTSTYLES)
-+#define CS_ITEMS (CS_SHADOWLIGHTS + MAX_SHADOW_LIGHTS)
-+#define CS_PLAYERSKINS (CS_ITEMS + MAX_ITEMS)
-+#define CS_MODELSKINS (CS_PLAYERSKINS + MAX_CLIENTS)
-+#define CS_GENERAL (CS_MODELSKINS + MAX_MODELS)
-+#define CS_LIGHTFLARES (CS_GENERAL + MAX_GENERAL)
-+#define CS_JUNIORS (CS_LIGHTFLARES + MAX_LIGHTFLARES)
-+#define CS_SERVER_VERSION (CS_JUNIORS + MAX_JUNIORS)
-+#define CS_DENSITY (CS_SERVER_VERSION + 1)
-+#define CS_FOGVAL (CS_DENSITY + 1)
-+#define CS_DENSITY2 (CS_FOGVAL + 1)
-+#define CS_FOGVAL2 (CS_DENSITY2 + 1)
-+#define MAX_CONFIGSTRINGS (CS_FOGVAL2 + 1)
- 
- 
- // Ridah, Lightflares
-@@ -1379,7 +1385,7 @@
- 	vec3_t	angles;
- 	vec3_t	old_origin;		// for lerping
- 	int		modelindex;
--//	int		modelindex2, modelindex3, modelindex4;	// weapons, CTF flags, etc
-+	int		modelindex2, modelindex3, modelindex4;	// weapons, CTF flags, etc
- 	int		frame;
- 	int		skinnum;
- 	int		effects;
---- a/gamesrc/GAME.H	2026-10-10 23:48:08.284020166 +0000
-+++ b/gamesrc/GAME.H	2026-10-10 23:48:08.336021325 +0000
+diff -ruN a/gamesrc/GAME.H b/gamesrc/GAME.H
+--- a/gamesrc/GAME.H	2020-05-27 11:27:54.000000000 +0000
++++ b/gamesrc/GAME.H	2026-10-11 11:01:06.059376247 +0000
 @@ -83,156 +83,149 @@
  //
  // functions provided by the main engine
@@ -387,8 +290,9 @@
  } game_export_t;
  
  game_export_t *GetGameApi (game_import_t *import);
---- a/gamesrc/G_LOCAL.H	2026-10-10 23:48:08.284020166 +0000
-+++ b/gamesrc/G_LOCAL.H	2026-10-10 23:48:08.336021325 +0000
+diff -ruN a/gamesrc/G_LOCAL.H b/gamesrc/G_LOCAL.H
+--- a/gamesrc/G_LOCAL.H	2020-05-27 11:27:54.000000000 +0000
++++ b/gamesrc/G_LOCAL.H	2026-10-11 11:01:06.059376247 +0000
 @@ -1413,6 +1413,9 @@
  
  	float		voice_pitch;		// used to pitch voices up/down, 1.0 = same, 2.0 = chipmunk (double speed)
@@ -399,8 +303,21 @@
  	// DO NOT MODIFY ANYTHING ABOVE THIS, THE SERVER
  	// EXPECTS THE FIELDS IN THAT ORDER!
  
---- a/gamesrc/G_items.c	2026-10-10 23:50:27.131118978 +0000
-+++ b/gamesrc/G_items.c	2026-10-10 23:50:18.402924185 +0000
+diff -ruN a/gamesrc/G_cmds.c b/gamesrc/G_cmds.c
+--- a/gamesrc/G_cmds.c	2020-05-27 11:27:54.000000000 +0000
++++ b/gamesrc/G_cmds.c	2026-10-11 11:01:06.063376267 +0000
+@@ -354,7 +354,7 @@
+ 	if (!showpath_ent)
+ 	{	// spawn it
+ 		showpath_ent = G_Spawn();
+-		showpath_ent->s.modelindex = 255;
++		showpath_ent->s.modelindex = CUSTOM_PLAYER_MODEL;
+ 	}
+ 
+ 	VectorCopy( ent->s.origin, showpath_ent->s.origin );
+diff -ruN a/gamesrc/G_items.c b/gamesrc/G_items.c
+--- a/gamesrc/G_items.c	2020-05-27 11:27:54.000000000 +0000
++++ b/gamesrc/G_items.c	2026-10-11 11:01:06.059376247 +0000
 @@ -41,11 +41,11 @@
  gitem_armor_t combatarmor_info	= { 50, 100, .60, .30, ARMOR_COMBAT};
  gitem_armor_t bodyarmor_info	= {100, 200, .80, .60, ARMOR_BODY};
@@ -418,8 +335,60 @@
  
  #define HEALTH_IGNORE_MAX	1
  #define HEALTH_TIMED		2
---- a/gamesrc/P_client.c	2026-10-11 00:02:19.603019869 +0000
-+++ b/gamesrc/P_client.c	2026-10-11 00:02:19.623020315 +0000
+diff -ruN a/gamesrc/G_save.c b/gamesrc/G_save.c
+--- a/gamesrc/G_save.c	2020-05-27 11:27:54.000000000 +0000
++++ b/gamesrc/G_save.c	2026-10-11 11:01:19.263442897 +0000
+@@ -670,7 +670,7 @@
+ last save position.
+ ============
+ */
+-void WriteGame (char *filename, qboolean autosave)
++void WriteGame (const char *filename, qboolean autosave)
+ {
+ 	FILE	*f;
+ 	int		i;
+@@ -697,7 +697,7 @@
+ 	fclose (f);
+ }
+ 
+-void ReadGame (char *filename)
++void ReadGame (const char *filename)
+ {
+ 	FILE	*f;
+ 	int		i;
+@@ -967,7 +967,7 @@
+ 
+ =================
+ */
+-void WriteLevel (char *filename)
++void WriteLevel (const char *filename)
+ {
+ 	int		i;
+ 	edict_t	*ent;
+@@ -1049,7 +1049,7 @@
+ 
+ qboolean	changing_levels=false;
+ 
+-void ReadLevel (char *filename)
++void ReadLevel (const char *filename)
+ {
+ 	int		entnum;
+ 	FILE	*f;
+diff -ruN a/gamesrc/G_spawn.c b/gamesrc/G_spawn.c
+--- a/gamesrc/G_spawn.c	2020-05-27 11:27:54.000000000 +0000
++++ b/gamesrc/G_spawn.c	2026-10-11 11:01:19.263442897 +0000
+@@ -1039,7 +1039,7 @@
+ char	last_changelevel[64];
+ extern void LightConfigstrings ();
+ 
+-void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
++void SpawnEntities (const char *mapname, char *entities, const char *spawnpoint)
+ {
+ 	edict_t		*ent;
+ 	int			inhibit;
+diff -ruN a/gamesrc/P_client.c b/gamesrc/P_client.c
+--- a/gamesrc/P_client.c	2020-05-27 11:27:54.000000000 +0000
++++ b/gamesrc/P_client.c	2026-10-11 11:01:06.063376267 +0000
 @@ -1445,7 +1445,7 @@
  	// clear entity state values
  	ent->s.effects = 0;
@@ -438,14 +407,111 @@
  		gi.GetObjectBounds( modelname, &ent->s.model_parts[ent->s.num_parts-1] );
  		if (!ent->s.model_parts[ent->s.num_parts-1].object_bounds[0])
  			gi.GetObjectBounds( "players/male_thug/head.mdx", &ent->s.model_parts[ent->s.num_parts-1] );
---- a/gamesrc/G_cmds.c	2026-10-11 00:02:19.607019958 +0000
-+++ b/gamesrc/G_cmds.c	2026-10-11 00:02:19.623020315 +0000
-@@ -354,7 +354,7 @@
- 	if (!showpath_ent)
- 	{	// spawn it
- 		showpath_ent = G_Spawn();
--		showpath_ent->s.modelindex = 255;
-+		showpath_ent->s.modelindex = CUSTOM_PLAYER_MODEL;
- 	}
+diff -ruN a/gamesrc/Q_SHARED.H b/gamesrc/Q_SHARED.H
+--- a/gamesrc/Q_SHARED.H	2020-05-27 11:27:54.000000000 +0000
++++ b/gamesrc/Q_SHARED.H	2026-10-11 11:01:19.263442897 +0000
+@@ -612,7 +612,7 @@
  
- 	VectorCopy( ent->s.origin, showpath_ent->s.origin );
+ 	// callbacks to test the world
+ 	trace_t		(*trace) (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end);
+-	int			(*pointcontents) (vec3_t point);
++	int			(*pointcontents) (const vec3_t point);
+ 
+ 	// JOSEPH 1-SEP-98
+ 	int			footsteptype;
+@@ -1180,43 +1180,49 @@
+ // the server to all connected clients.
+ // Each config string can be at most MAX_QPATH characters.
+ //
+-#define	CS_NAME				0
+-#define	CS_CDTRACK			1
+-
+-#define CS_DENSITY			2
+-#define CS_FOGVAL			3
+-
+-#define CS_DENSITY2			4
+-#define CS_FOGVAL2			5
+-
+-#define	CS_SKY				6
+-#define	CS_STATUSBAR		7		// display program string
+-
+-// RAFAEL
+-//#define CS_SKYBOX_ORIGIN		10
+-/*
+-#define	CS_SKY				2
+-#define	CS_SKYAXIS			3		// %f %f %f format
+-#define	CS_SKYROTATE		4
+-#define	CS_STATUSBAR		5		// display program string
+-*/
+-
+-#define	CS_SERVER_VERSION	29		// so new clients can decide which version of download code to use
+-
+-#define	CS_MAXCLIENTS		30
+-#define	CS_MAPCHECKSUM		31		// for catching cheater maps
+-
+-#define	CS_MODELS			32
+-#define	CS_SOUNDS			(CS_MODELS+MAX_MODELS)
+-#define	CS_IMAGES			(CS_SOUNDS+MAX_SOUNDS)
+-#define CS_MODELSKINS		(CS_IMAGES+MAX_IMAGES)
+-#define	CS_LIGHTS			(CS_MODELSKINS+MAX_MODELS)
+-#define	CS_ITEMS			(CS_LIGHTS+MAX_LIGHTSTYLES)
+-#define	CS_PLAYERSKINS		(CS_ITEMS+MAX_ITEMS)
+-#define	CS_LIGHTFLARES		(CS_PLAYERSKINS+MAX_CLIENTS)
+-#define	CS_JUNIORS			(CS_LIGHTFLARES+MAX_LIGHTFLARES)
+-#define CS_GENERAL			(CS_JUNIORS+MAX_JUNIOR_STRINGS)
+-#define	MAX_CONFIGSTRINGS	(CS_GENERAL+MAX_GENERAL)
++/* yquake2remaster configstring layout (the game module ABI).
++ * The limits below must match the engine. */
++#undef MAX_MODELS
++#define MAX_MODELS 512
++#undef MAX_SOUNDS
++#define MAX_SOUNDS 512
++#undef MAX_ITEMS
++#define MAX_ITEMS 512
++#define MAX_SHADOW_LIGHTS 256
++#define MAX_LIGHTFLARES 128
++#define CUSTOM_PLAYER_MODEL (MAX_MODELS - 1)
++#define MAX_JUNIORS 32
++
++#define CS_NAME 0
++#define CS_CDTRACK 1
++#define CS_SKY 2
++#define CS_SKYAXIS 3
++#define CS_SKYROTATE 4
++#define CS_STATUSBAR 5
++#define CS_STATUSBAR_END 29
++#define CS_STATUSBAR_SPACE(i) ((CS_STATUSBAR_END - (i)) * MAX_QPATH)
++#define CS_AIRACCEL 29
++#define CS_MAXCLIENTS 30
++#define CS_MAPCHECKSUM 31
++#define CS_STORY 32
++#define CS_SKIP 33
++#define CS_MODELS 34
++#define CS_SOUNDS (CS_MODELS + MAX_MODELS)
++#define CS_IMAGES (CS_SOUNDS + MAX_SOUNDS)
++#define CS_LIGHTS (CS_IMAGES + MAX_IMAGES)
++#define CS_SHADOWLIGHTS (CS_LIGHTS + MAX_LIGHTSTYLES)
++#define CS_ITEMS (CS_SHADOWLIGHTS + MAX_SHADOW_LIGHTS)
++#define CS_PLAYERSKINS (CS_ITEMS + MAX_ITEMS)
++#define CS_MODELSKINS (CS_PLAYERSKINS + MAX_CLIENTS)
++#define CS_GENERAL (CS_MODELSKINS + MAX_MODELS)
++#define CS_LIGHTFLARES (CS_GENERAL + MAX_GENERAL)
++#define CS_JUNIORS (CS_LIGHTFLARES + MAX_LIGHTFLARES)
++#define CS_SERVER_VERSION (CS_JUNIORS + MAX_JUNIORS)
++#define CS_DENSITY (CS_SERVER_VERSION + 1)
++#define CS_FOGVAL (CS_DENSITY + 1)
++#define CS_DENSITY2 (CS_FOGVAL + 1)
++#define CS_FOGVAL2 (CS_DENSITY2 + 1)
++#define MAX_CONFIGSTRINGS (CS_FOGVAL2 + 1)
+ 
+ 
+ // Ridah, Lightflares
+@@ -1379,7 +1385,7 @@
+ 	vec3_t	angles;
+ 	vec3_t	old_origin;		// for lerping
+ 	int		modelindex;
+-//	int		modelindex2, modelindex3, modelindex4;	// weapons, CTF flags, etc
++	int		modelindex2, modelindex3, modelindex4;	// weapons, CTF flags, etc
+ 	int		frame;
+ 	int		skinnum;
+ 	int		effects;
