@@ -26,7 +26,7 @@
 
 #include "header/client.h"
 #include "sound/header/local.h"
-#include "../../common/header/cmodel.h"
+#include "../common/header/cmodel.h"
 
 typedef enum
 {
