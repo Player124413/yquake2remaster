@@ -29,6 +29,10 @@ public final class NativeLib
     /** Point Sys_GetBinaryDir() at the APK native library dir. */
     public static native void nativeInit(String libDir);
 
+    /** Open the shared diagnostic log file for the engine console output
+     *  (appended by Android_LogFileWrite in android_jni.c). */
+    public static native void nativeLogOpen(String path);
+
     /** Press/release a key by engine key name ("MOUSE1", "SPACE", ...). */
     public static native void nativeKey(String keyName, boolean down);
 

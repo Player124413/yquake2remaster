@@ -26,6 +26,7 @@
 #ifdef __ANDROID__
 
 #include <jni.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "../../common/header/common.h"
@@ -34,6 +35,63 @@
 
 /* Key name ("MOUSE1", "SPACE", ...) to K_* resolution. */
 int Key_StringToKeynum(const char *str);
+
+/* ---- shared diagnostic log ------------------------------------------ */
+
+static FILE *android_logfile;
+
+/*
+ * Append engine console output to the launcher visible log file.
+ * Called from Sys_ConsoleOutput() and Sys_Error(); the file is opened
+ * by NativeLib.nativeLogOpen() before SDL_main runs.
+ */
+void
+Android_LogFileWrite(const char *text)
+{
+	if (android_logfile == NULL || text == NULL)
+	{
+		return;
+	}
+
+	/* strip the console colour markers */
+	if ((text[0] == 0x01) || (text[0] == 0x02))
+	{
+		text++;
+	}
+
+	fputs(text, android_logfile);
+	fflush(android_logfile);
+}
+
+JNIEXPORT void JNICALL
+Java_com_yquake2_kingpin_NativeLib_nativeLogOpen(JNIEnv *env, jclass cls,
+		jstring path)
+{
+	const char *p;
+
+	if (path == NULL)
+	{
+		return;
+	}
+
+	p = (*env)->GetStringUTFChars(env, path, NULL);
+
+	if (p == NULL)
+	{
+		return;
+	}
+
+	if (android_logfile != NULL)
+	{
+		fclose(android_logfile);
+		android_logfile = NULL;
+	}
+
+	android_logfile = fopen(p, "a");
+	(*env)->ReleaseStringUTFChars(env, path, p);
+}
+
+/* --------------------------------------------------------------------- */
 
 JNIEXPORT void JNICALL
 Java_com_yquake2_kingpin_NativeLib_nativeInit(JNIEnv *env, jclass cls,

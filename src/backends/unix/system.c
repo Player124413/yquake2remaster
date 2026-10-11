@@ -48,6 +48,11 @@
 #include "../../common/header/common.h"
 #include "../../common/header/glob.h"
 
+#ifdef __ANDROID__
+/* Engine console copy into the launcher visible log (android_jni.c). */
+void Android_LogFileWrite(const char *text);
+#endif
+
 // Pointer to game library
 static void *game_library;
 
@@ -104,6 +109,15 @@ Sys_Error(const char *error, ...)
 	vsnprintf(string, 1024, error, argptr);
 	va_end(argptr);
 	fprintf(stderr, "Error: %s\n", string);
+
+#ifdef __ANDROID__
+	{
+		char buf[1100];
+
+		snprintf(buf, sizeof(buf), "Error: %s\n", string);
+		Android_LogFileWrite(buf);
+	}
+#endif
 
 	exit(1);
 }
@@ -220,6 +234,11 @@ Sys_ConsoleInput(void)
 void
 Sys_ConsoleOutput(const char *string)
 {
+#ifdef __ANDROID__
+	/* copy everything into the launcher visible log file */
+	Android_LogFileWrite(string);
+#endif
+
 	if ((string[0] == 0x01) || (string[0] == 0x02))
 	{
 		if (color_active)

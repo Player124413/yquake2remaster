@@ -52,4 +52,14 @@
     <string name="data_ok">Game data found</string>
     <string name="files_granted">File access granted</string>
     <string name="files_not_granted">File access not granted</string>
+
+    <string name="log">Log</string>
+    <string name="log_title">Diagnostic log</string>
+    <string name="log_copy">Copy</string>
+    <string name="log_copied">Log copied to clipboard</string>
+    <string name="log_share">Share</string>
+    <string name="log_clear">Clear</string>
+    <string name="log_refresh">Refresh</string>
+    <string name="log_close">Close</string>
+    <string name="log_empty">(the log is empty)</string>
 </resources>

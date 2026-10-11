@@ -16,7 +16,9 @@
 package com.yquake2.kingpin;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
+import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -24,6 +26,8 @@ import android.os.Environment;
 import android.provider.Settings;
 import android.view.View;
 import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -48,6 +52,10 @@ public class LauncherActivity extends Activity
 
         prefs = new Prefs(this);
         statusText = findViewById(R.id.status_text);
+
+        GameLog.init(this);
+        GameLog.log("launcher: onCreate (SDK " + Build.VERSION.SDK_INT +
+                ", data path " + prefs.dataPath(this) + ")");
 
         Button play = findViewById(R.id.btn_play);
         play.setOnClickListener(new View.OnClickListener()
@@ -83,6 +91,15 @@ public class LauncherActivity extends Activity
             public void onClick(View v)
             {
                 requestFileAccess();
+            }
+        });
+
+        findViewById(R.id.btn_log).setOnClickListener(new View.OnClickListener()
+        {
+            @Override
+            public void onClick(View v)
+            {
+                showLogDialog();
             }
         });
 
@@ -135,6 +152,7 @@ public class LauncherActivity extends Activity
 
         if (!game.isDirectory())
         {
+            GameLog.log("launcher: data check: no directory " + game);
             return false;
         }
 
@@ -142,28 +160,169 @@ public class LauncherActivity extends Activity
 
         if (files == null)
         {
+            GameLog.log("launcher: data check: cannot list " + game +
+                    " (storage permission missing?)");
             return false;
         }
+
+        StringBuilder paks = new StringBuilder();
 
         for (String f : files)
         {
             if (f.toLowerCase().endsWith(".pak"))
             {
-                return true;
+                if (paks.length() < 200)
+                {
+                    paks.append(f).append(' ');
+                }
             }
         }
 
-        return false;
+        GameLog.log("launcher: data check: " + game +
+                " contains paks: " + (paks.length() > 0 ? "[" + paks.toString().trim() + "]" : "NONE"));
+
+        return paks.length() > 0;
     }
 
     private void startGame()
     {
-        if (!dataPresent())
+        boolean ok = dataPresent();
+        GameLog.log("launcher: start game requested (data ok: " + ok + ")");
+
+        if (!ok)
         {
             Toast.makeText(this, R.string.data_missing, Toast.LENGTH_LONG).show();
         }
 
         startActivity(new Intent(this, GameActivity.class));
+    }
+
+    /**
+     * Diagnostic log viewer: shows the shared launcher/engine log with
+     * copy-to-clipboard, share, clear and refresh actions.
+     */
+    private void showLogDialog()
+    {
+        float d = getResources().getDisplayMetrics().density;
+        int pad = (int) (16 * d);
+
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(pad, pad / 2, pad, 0);
+
+        final TextView text = new TextView(this);
+        text.setTypeface(Typeface.MONOSPACE);
+        text.setTextSize(11);
+        text.setTextIsSelectable(true);
+        text.setTextColor(getResources().getColor(R.color.text_secondary));
+
+        String log = GameLog.read(this);
+        text.setText(log.length() > 0 ? log : getString(R.string.log_empty));
+
+        final ScrollView scroll = new ScrollView(this);
+        scroll.addView(text);
+        root.addView(scroll, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f));
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+
+        Button copy = new Button(this);
+        copy.setText(R.string.log_copy);
+        copy.setTextSize(12);
+        copy.setSingleLine(true);
+        copy.setOnClickListener(new View.OnClickListener()
+        {
+            @Override
+            public void onClick(View v)
+            {
+                GameLog.copy(LauncherActivity.this, text.getText().toString());
+                Toast.makeText(LauncherActivity.this,
+                        R.string.log_copied, Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        Button share = new Button(this);
+        share.setText(R.string.log_share);
+        share.setTextSize(12);
+        share.setSingleLine(true);
+        share.setOnClickListener(new View.OnClickListener()
+        {
+            @Override
+            public void onClick(View v)
+            {
+                Intent send = new Intent(Intent.ACTION_SEND);
+                send.setType("text/plain");
+                send.putExtra(Intent.EXTRA_TEXT, text.getText().toString());
+                startActivity(Intent.createChooser(send,
+                        getString(R.string.log_share)));
+            }
+        });
+
+        Button clear = new Button(this);
+        clear.setText(R.string.log_clear);
+        clear.setTextSize(12);
+        clear.setSingleLine(true);
+        clear.setOnClickListener(new View.OnClickListener()
+        {
+            @Override
+            public void onClick(View v)
+            {
+                GameLog.clear(LauncherActivity.this);
+                text.setText(R.string.log_empty);
+            }
+        });
+
+        Button refresh = new Button(this);
+        refresh.setText(R.string.log_refresh);
+        refresh.setTextSize(12);
+        refresh.setSingleLine(true);
+        refresh.setOnClickListener(new View.OnClickListener()
+        {
+            @Override
+            public void onClick(View v)
+            {
+                String s = GameLog.read(LauncherActivity.this);
+                text.setText(s.length() > 0 ? s : getString(R.string.log_empty));
+                scroll.post(new Runnable()
+                {
+                    @Override
+                    public void run()
+                    {
+                        scroll.fullScroll(View.FOCUS_DOWN);
+                    }
+                });
+            }
+        });
+
+        LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+        row.addView(copy, blp);
+        row.addView(share, new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+        row.addView(clear, new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+        row.addView(refresh, new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+
+        root.addView(row, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.log_title)
+                .setView(root)
+                .setNegativeButton(R.string.log_close, null)
+                .show();
+
+        scroll.post(new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                scroll.fullScroll(View.FOCUS_DOWN);
+            }
+        });
     }
 
     /**

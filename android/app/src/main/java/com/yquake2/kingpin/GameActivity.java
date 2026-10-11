@@ -39,6 +39,24 @@ public class GameActivity extends SDLActivity
 
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
+        /* SDLActivity.onCreate() has loaded the native libraries at this
+           point (or set mBrokenLibraries); open the engine log first so
+           every engine message lands in the launcher visible file. */
+        GameLog.init(this);
+        GameLog.log("GameActivity: onCreate (SDL libraries ok: " +
+                (!SDLActivity.mBrokenLibraries) + ")");
+
+        try
+        {
+            NativeLib.nativeLogOpen(GameLog.file(this).getAbsolutePath());
+            GameLog.log("GameActivity: engine log opened: " +
+                    GameLog.file(this).getAbsolutePath());
+        }
+        catch (UnsatisfiedLinkError e)
+        {
+            GameLog.log("GameActivity: engine library not loaded: " + e);
+        }
+
         Prefs prefs = new Prefs(this);
         TouchLayout layout = new TouchLayout();
         layout.load(prefs);
@@ -130,6 +148,8 @@ public class GameActivity extends SDLActivity
 
         String libDir = getApplicationInfo().nativeLibraryDir;
         List<String> args = prefs.engineArgs(this, libDir);
+
+        GameLog.log("GameActivity: engine args: " + args);
 
         return args.toArray(new String[0]);
     }
