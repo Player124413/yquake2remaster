@@ -1,6 +1,6 @@
 diff -ruN a/gamesrc/GAME.H b/gamesrc/GAME.H
 --- a/gamesrc/GAME.H	2020-05-27 11:27:54.000000000 +0000
-+++ b/gamesrc/GAME.H	2026-10-11 11:01:06.059376247 +0000
++++ b/gamesrc/GAME.H	2026-10-11 11:18:16.616581436 +0000
 @@ -83,156 +83,149 @@
  //
  // functions provided by the main engine
@@ -289,7 +289,8 @@ diff -ruN a/gamesrc/GAME.H b/gamesrc/GAME.H
 +	int (*GetNumJuniors)(void);
  } game_export_t;
  
- game_export_t *GetGameApi (game_import_t *import);
+-game_export_t *GetGameApi (game_import_t *import);
++game_export_t *GetGameAPI (game_import_t *import);
 diff -ruN a/gamesrc/G_LOCAL.H b/gamesrc/G_LOCAL.H
 --- a/gamesrc/G_LOCAL.H	2020-05-27 11:27:54.000000000 +0000
 +++ b/gamesrc/G_LOCAL.H	2026-10-11 11:01:06.059376247 +0000
