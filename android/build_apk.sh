@@ -32,10 +32,12 @@ fi
 SDK_DIR="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
 echo "sdk.dir=$SDK_DIR" > local.properties
 
-GRADLE="gradle"
-if [ -x "./gradlew" ]; then
-    GRADLE="./gradlew"
-elif ! command -v gradle >/dev/null 2>&1; then
+GRADLE="sh ./gradlew"
+if [ -f "./gradlew" ]; then
+    GRADLE="sh ./gradlew"
+elif command -v gradle >/dev/null 2>&1; then
+    GRADLE="gradle"
+else
     echo "Gradle not found. Either install Gradle 8.7+ or open this"
     echo "directory in Android Studio (it will set up the wrapper)."
     exit 1
@@ -51,7 +53,22 @@ case "$BUILD_TYPE" in
 esac
 
 echo "==> Building $TASK ..."
-"$GRADLE" "$TASK"
+GRADLE_LOG="$PWD/gradle-build.log"
+if ! "$GRADLE" "$TASK" --stacktrace 2>&1 | tee "$GRADLE_LOG"; then
+    echo ""
+    echo "==> Gradle failed, last lines of the log:"
+    tail -n 60 "$GRADLE_LOG"
+    # In GitHub Actions surface the tail as annotations so it is
+    # visible without downloading the full log bundle.
+    if [ "$GITHUB_ACTIONS" = "true" ]; then
+        n=0
+        while [ "$n" -lt 200 ]; do
+            echo "::error title=Gradle build failed::$(tail -n 200 "$GRADLE_LOG" | sed -n "$((n + 1)),$((n + 20))p" | tr '\n' '|' | cut -c1-4000)"
+            n=$((n + 20))
+        done
+    fi
+    exit 1
+fi
 
 APK_DIR="app/build/outputs/apk/$BUILD_TYPE"
 echo ""
