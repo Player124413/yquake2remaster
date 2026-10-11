@@ -82,8 +82,15 @@ jobs:
         run: |
           set -e
           BT="$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS"
-          UNSIGNED="android/app/build/outputs/apk/release/app-release-unsigned.apk"
-          [ -f "$UNSIGNED" ] || { echo "unsigned APK not found"; exit 1; }
+          echo "==> Looking for the APK in android/app/build/outputs:"
+          find android/app/build/outputs -type f -name '*.apk' -print
+
+          UNSIGNED="$(find android/app/build/outputs -type f -name '*.apk' | head -n 1)"
+          if [ -z "$UNSIGNED" ]; then
+            echo "::error title=Sign APK::no APK found in android/app/build/outputs"
+            exit 1
+          fi
+          echo "==> Signing: $UNSIGNED"
 
           "$BT/zipalign" -f -p 4 "$UNSIGNED" "$RUNNER_TEMP/aligned.apk" \
             || { echo "::error title=Sign APK::zipalign failed"; exit 1; }
