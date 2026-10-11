@@ -187,8 +187,7 @@ build_abi() {
         # shellcheck disable=SC2016
         UNDEF="$(nm -u "$OBJDIR"/*.o 2>/dev/null | awk '{print $NF}' | grep -E '^(NAV_|nav_|G_Nav|G_Nav_)' | sort -u || true)"
         if [ -z "$UNDEF" ]; then
-            cat "$BUILD/link-$ABI.log"
-            fail "Link failed for $ABI with no navigation symbols to stub"
+            fail "Link failed for $ABI with no navigation symbols to stub: $(tail -c 500 "$BUILD/link-$ABI.log" | tr '\n' '|' | cut -c1-450)"
         fi
         {
             echo "/* Auto generated CNS stubs ($ABI) */"
@@ -198,9 +197,8 @@ build_abi() {
         } >> "$GAMESRC/kp_shim.c"
         "$CC" $CFLAGS -c "$GAMESRC/kp_shim.c" -o "$OBJDIR/kp_shim.o"
         "$CC" -shared -Wl,--no-undefined -o "$BUILD/libgame-$ABI.so" \
-            "$OBJDIR"/*.o -lm || {
-            cat "$BUILD/link-$ABI.log"
-            fail "Link failed for $ABI after stubbing"
+            "$OBJDIR"/*.o -lm 2> "$BUILD/link-$ABI.log" || {
+            fail "Link failed for $ABI after stubbing: $(tail -c 500 "$BUILD/link-$ABI.log" | tr '\n' '|' | cut -c1-450)"
         }
     fi
 
