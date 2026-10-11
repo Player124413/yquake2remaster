@@ -32,11 +32,10 @@ fi
 SDK_DIR="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
 echo "sdk.dir=$SDK_DIR" > local.properties
 
-GRADLE="sh ./gradlew"
 if [ -f "./gradlew" ]; then
-    GRADLE="sh ./gradlew"
+    run_gradle() { sh ./gradlew "$@"; }
 elif command -v gradle >/dev/null 2>&1; then
-    GRADLE="gradle"
+    run_gradle() { gradle "$@"; }
 else
     echo "Gradle not found. Either install Gradle 8.7+ or open this"
     echo "directory in Android Studio (it will set up the wrapper)."
@@ -55,7 +54,7 @@ esac
 echo "==> Building $TASK ..."
 GRADLE_LOG="$PWD/gradle-build.log"
 set +e
-"$GRADLE" "$TASK" --stacktrace > "$GRADLE_LOG" 2>&1
+run_gradle "$TASK" --stacktrace > "$GRADLE_LOG" 2>&1
 GRADLE_STATUS=$?
 set -e
 cat "$GRADLE_LOG"
