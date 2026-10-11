@@ -1103,7 +1103,10 @@ else()
 	set(YQ2_PLUGIN_PREFIX "")
 endif()
 
-# Build the game dynamic library
+# Build the game dynamic library. On Android the game comes prebuilt from the
+# Kingpin SDK (android/build_game_lib.sh) and is packaged from jniLibs as
+# libgame.so, so do not build this target there - it would collide.
+if(NOT ANDROID)
 add_library(game ${YQ2_PLUGIN_LIBTYPE} ${Game-Source} ${Game-Header})
 set_target_properties(game PROPERTIES
 		PREFIX "${YQ2_PLUGIN_PREFIX}"
@@ -1122,6 +1125,7 @@ else() # single-config, like normal Makefiles
 		)
 endif()
 target_link_libraries(game ${yquake2LinkerFlags})
+endif() # NOT ANDROID
 
 if(${GL1_RENDERER})
 
